@@ -10,7 +10,7 @@ Upstream: https://github.com/Ahmednull/L2CS-Net (MIT, L2CS-Net, ICIP 2022).
 Pip-зависимости: torch, torchvision, safetensors, huggingface_hub.
 
 Выход — углы взгляда (pitch, yaw) в радианах на лицо. Для экрана нужна
-персональная калибровка 9 точек: фича [pitch, yaw] -> GazeRegressor/RBF
+персональная калибровка 126 точек: фича [pitch, yaw] -> GazeRegressor/RBF
 (как MacGaze: базовый вектор + RBF-персонализация поверх).
 
 Пример:

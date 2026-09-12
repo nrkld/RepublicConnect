@@ -10,17 +10,13 @@ FPS_TARGET = 30
 MP_MIN_CONF = 0.5
 MP_LOST_CONF = 0.3
 
-# Калибровка: сетка 3x3 serpentine, 3с фиксация, settle 0.8с, 0.4с усреднение, веса углов 1.5x
-# Плотная сетка: 10x5=50 точек по 1.5с (дефолт) — точнее на краях, Ridge есть чем кормиться.
-CALIB_GRID = 3
-CALIB_DENSE_COLS = 10
-CALIB_DENSE_ROWS = 5
-CALIBDWELL_S = 3.0
-CALIBDWELL_DENSE_S = 1.5
-# Рисерч: Ridge -20% MSE vs poly; 9 точек оптимум скорость/точность (14 для 0.5°);
+# Калибровка: только плотная сетка 126 равноудалённых точек (~4 мин),
+# settle 0.8с, 0.4с усреднение. Других сеток нет.
+CALIB_POINTS = 126
+CALIBDWELL_S = 1.5
+# Рисерч: Ridge -20% MSE vs poly; плотная сетка точнее на краях, Ridge есть чем кормиться;
 # smooth-pursuit 0.91° но дольше; drift-коррекция 7 точек каждые N проб (15с).
-CALIB_MARGIN_DENSE = 0.035  # точки почти у краёв для плотной сетки / auto
-CALIB_MARGIN_SPARSE = 0.12  # отступ для редкой сетки 3x3
+CALIB_MARGIN = 0.035  # точки почти у краёв
 CALIB_SETTLE_S = 0.8  # игнор после смены точки (саккада) — идея Hannibal730 delay<per-point
 CALIB_AVG_S = 0.4
 EDGE_WEIGHT = 1.5
@@ -32,14 +28,6 @@ HEAD_SHIFT_THR = 0.15  # смена ширины глаз >15% vs калибро
 # Сглаживание: EMA alpha=0.4 по 5 кадрам + Калман
 EMA_ALPHA = 0.4
 EMA_N = 5
-
-# Dwell MVP: фиксированный 1000мс (адаптивный 800-1500 — фаза 2)
-DWELL_MS = 1000
-
-# UI: клавиши 150px центр / 180px периферия, зазор 14px
-KEY_CENTER = 150
-KEY_EDGE = 180
-KEY_GAP = 14
 
 # Геометрия для перевода px -> градусы (ноутбук по умолчанию, переопределить под монитор)
 SCREEN_W_PX, SCREEN_H_PX = 1920, 1080

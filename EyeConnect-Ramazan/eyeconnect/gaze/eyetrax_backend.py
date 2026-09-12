@@ -107,9 +107,3 @@ class EyeTraxTracker:
             self.estimator.close()
         except Exception:
             pass
-
-
-def run_9_point_calibration(estimator):
-    """Реэкспорт upstream калибровки 9 точек (открывает fullscreen UI)."""
-    eyetrax = _ensure_eyetrax_importable()
-    return eyetrax.run_9_point_calibration(estimator)

@@ -5,7 +5,7 @@ Low-cost AI-система управления компьютером взгл�
 
 Репозиторий-зонт над тремя модулями:
 
-- **`EyeConnect-Ramazan/`** — gaze-трекер + dwell-клавиатура (KZ/RU/EN) + gaze-курсор. Веб-камера → FaceMesh/iris → калибровка 9 точек → курсор/печать взглядом.
+- **`EyeConnect-Ramazan/`** — gaze-трекер + gaze-курсор. Веб-камера → FaceMesh/iris → калибровка 126 точек → курсор взглядом.
 - **`magnetcursor/`** — магнитный курсор для Windows. Курсор прилипает к кликабельному (кнопки, ссылки, меню) через UI Automation, с гистерезисом и детектом вырывания.
 - **`hybrid/`** — общий слой: провайдер координат (мышь/взгляд) → магнит-снап → один `set_pos`, клики в снапнутой точке. Только stdlib + ctypes, без камеры/UIA в импортах.
 
@@ -26,12 +26,11 @@ RepublicConnect/
 ├── requirements-hybrid.txt          ← единый install для hybrid (Windows)
 ├── .gitignore                       ← корень (кэш/логи/профили НЕ коммитим)
 │
-├── EyeConnect-Ramazan/              ← gaze-трекер и клавиатура
-│   ├── eyeconnect/                  ← код (main, gaze/, ui/, eval/, predict/, data/)
+├── EyeConnect-Ramazan/              ← gaze-трекер и курсор
+│   ├── eyeconnect/                  ← код (main, gaze/, ui/, eval/)
 │   │   ├── RUN.md                   ← запуск на ноутбуке
 │   │   ├── CALIBRATION.md           ← рисерч калибровки + аудит + roadmap
 │   │   ├── requirements.txt / requirements-pi.txt
-│   │   ├── data/kz_top5k.txt, ru_top5k.txt, en_top10k.txt
 │   ├── docs/opencode-sessions/*.md  ← логи opencode-сессий (5 шт.)
 │   ├── third_party/                 ← вендоренные EyeTrax, L2CS-Net, face-detection (RetinaFace)
 │   ├── pyproject.toml, README.md, LICENSE, .gitignore
@@ -43,7 +42,7 @@ RepublicConnect/
 │
 ├── hybrid/                          ← курсор-ядро (stdlib-only)
 │   ├── __main__.py / engine.py / providers.py / snap_core.py
-│   ├── clicks.py / win_cursor.py / kb_targets.py / profiles.py / config.py
+│   ├── clicks.py / win_cursor.py / profiles.py / config.py
 │   ├── tests/, README.md
 │
 ├── *.pptx                           ← презентация проекта (2 файла: рабочий + backup)
@@ -86,7 +85,7 @@ python -m eyeconnect.test_smoke
 rem из EyeConnect-Ramazan: SMOKE OK
 ```
 
-### 1. EyeConnect — взгляд → курсор/клавиатура
+### 1. EyeConnect — взгляд → курсор
 
 Запуск из `EyeConnect-Ramazan/`:
 
@@ -95,8 +94,6 @@ cd EyeConnect-Ramazan
 python -m eyeconnect.test_smoke
 python -m eyeconnect.main --mode preview
 python -m eyeconnect.main --mode calibrate
-python -m eyeconnect.main --mode keyboard --lang KZ
-python -m eyeconnect.main --mode keyboard --lang RU --mouse
 python -m eyeconnect.main --mode cursor --click --click-dwell 1200
 python -m eyeconnect.webcam_check --frames 150
 ```
@@ -106,14 +103,11 @@ python -m eyeconnect.webcam_check --frames 150
 | Режим | Что делает |
 |---|---|
 | `preview` | проверка камеры и ирисов, Q — выход |
-| `calibrate` | калибровка 9 точек 3×3 (serpentine, settle 0.8с) |
-| `keyboard --lang KZ\|RU\|EN` | dwell-набор ~1000мс, верхние зоны — кликабельный предикт top-3, `LANG` — цикл языков, угол 3с — пауза, `SOS` — экстренная вставка |
+| `calibrate` | калибровка 126 точек serpentine (~4 мин, settle 0.8с) |
 | `cursor [--click]` | полноэкранный курсор + опциональный dwell-клик и системный курсор Windows (`--no-syscursor` — без системного) |
 | `webcam_check` | диагностика `det N/M + fps`, сейв в `~/.eyeconnect/webcam_check.jpg` |
 
 Подробно: `EyeConnect-Ramazan/eyeconnect/RUN.md`.
-
-Словари: `eyeconnect/data/{kz_top5k,ru_top5k,en_top10k}.txt` (по слову на строку).
 
 ### 2. MagnetCursor — магнит к кликабельному
 
@@ -159,19 +153,18 @@ python -m hybrid --source gaze --no-magnet
 - `clicks` — `DwellClicker` (фиксация → клик) + `ClickRouter` (wink по фронту + dwell только по снапу + cooldown).
 - `engine` — главный цикл `run_loop` (provider → snap → `set_pos`, клики, оверлей, `F9/F12`), `build_provider`, `needs_calibration`, `pick_compute_device`.
 - `profiles` — пути и миграция профилей (см. ниже).
-- `kb_targets` — цели dwell-клавиатуры (геометрия 1-в-1 с `DwellKeyboard`).
 - `__main__` — CLI: `--check / --migrate / --probe / --source`.
 
 Подробно: `hybrid/README.md`.
 
 ---
 
-## Калибровка (почему 9 точек, RidgeCV, settle)
+## Калибровка (126 точек, RidgeCV, settle)
 
 Полный разбор: `EyeConnect-Ramazan/eyeconnect/CALIBRATION.md`. Кратко:
 
 - Ориентиры точности: 2D-mapping ≤2°, appearance-based без калибровки 3–3.7° (ETH-XGaze 3.7°, MPIIGaze 3.4°), webcam-калиброванная ~1–1.4° (GazeFollower 1.05°, Kaduk 2024 1.4°/1.1°).
-- 9 точек — оптимум скорость/точность; 5≈9 для poly/RANSAC, но Ridge выигрывает от +4 точек; serpentine/rectangular лучше circular/random (длинные саккады вредят).
+- 126 равноудалённых точек serpentine (~4 мин): serpentine/rectangular лучше circular/random (длинные саккады вредят).
 - Что починили относительно первой версии: `Ridge(alpha=1.0)` → `RidgeCV(0.1,1,10)` + `fit_robust` (сброс худшей точки при residual>2.5·median + refit); `mean(buf)` → robust-mean (медиана+MAD); row-major → serpentine; добавлен settle 0.8с + резка саккад (`is_saccade thr=0.25`); валидация train-fit → + LOO (честная оценка) с вердиктом OK/СРЕДНЕ/ПЛОХО; сырые сэмплы сохраняются в `gaze_samples_*.npz`.
 - Конфиг: `CALIB_SETTLE_S=0.8`, `RIDGE_ALPHAS=(0.1,1,10)`, `CALIB_RANSAC=True`, `VALID_MAX_DEG=2.0`, `HEAD_SHIFT_THR=0.15`.
 - Roadmap калибровки: drift-коррекция (4 угла+центр), weightedRidge по dwell-кликам, blink→click через EAR → PCA контура + анизотропная нормализация → smooth-pursuit → GP/fine-tune (RPi5+).

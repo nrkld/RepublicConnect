@@ -164,7 +164,7 @@ def needs_calibration(tracker="unigaze", home=None):
 def build_gaze_provider(tracker="unigaze", camera=0, no_wink=False, recalibrate=False):
     """Настоящий GazeProvider из eyeconnect (камера + калибровка/профиль).
 
-    recalibrate=True -> fullscreen-калибровка (~126 равноудалённых точек на весь
+    recalibrate=True -> fullscreen-калибровка (126 равноудалённых точек на весь
     экран, края/углы включены) при каждом старте; отмена (Esc) или провал ->
     откат на сохранённый профиль. Профиля нет вообще -> RuntimeError с подсказкой.
     Возвращает (provider, close).
@@ -208,11 +208,11 @@ def build_gaze_provider(tracker="unigaze", camera=0, no_wink=False, recalibrate=
     if recalibrate:
         from eyeconnect.ui.cursor import fullscreen_calibrate
         avg_s = 1.0 if tracker in ("l2cs", "unigaze") else None
-        print("Калибровка: ~126 точек на весь экран (~4 мин). "
+        print("Калибровка: 126 точек на весь экран (~4 мин). "
               "Сядь 60см, смотри на красную точку. ПРОБЕЛ — начать, Esc — отмена.")
         try:
             reg, W, H = fullscreen_calibrate(cam, tr, filt, tracker, avg_s,
-                                             grid=("auto", 120), dwell_s=None, wait=True)
+                                             grid=("auto", 126), dwell_s=None, wait=True)
         except RuntimeError as e:
             print(f"Калибровка не удалась ({e}) — пробую сохранённый профиль")
             reg = None

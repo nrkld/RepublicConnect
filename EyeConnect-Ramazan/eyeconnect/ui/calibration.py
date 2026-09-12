@@ -1,4 +1,4 @@
-"""Калибровка 9 точек 3x3 serpentine (дока 4.4, Прил.В): settle + 3с фиксация, robust-mean.
+"""Калибровка 126 равноудалённых точек serpentine: settle + 1.5с фиксация, robust-mean.
 
 Рисерч-приемы: serpentine порядок (меньше длинные саккады, лучше circular/spiral),
 delay после смены точки (Hannibal730), медиана+MAD вместо mean, резка саккад,
@@ -11,23 +11,17 @@ from .. import config as C
 from ..gaze.normalize import robust_mean, is_saccade
 
 
-def grid_points(w, h, n=C.CALIB_GRID, margin: float = 0.12, serpentine: bool = True):
-    """Сетка точек. n: int (n x n), (cols, rows) или ("auto", N) — N точек с
-    РАВНЫМИ интервалами по X и Y (блок центрируется, см. auto_grid)."""
-    if isinstance(n, (tuple, list)) and n and n[0] == "auto":
-        return auto_grid(w, h, int(n[1]), margin=margin, serpentine=serpentine)
-    if isinstance(n, (tuple, list)):
-        cols, rows = max(2, int(n[0])), max(2, int(n[1]))
-    else:
-        cols = rows = max(2, int(n))
-    xs = np.linspace(w * margin, w * (1 - margin), cols)
-    ys = np.linspace(h * margin, h * (1 - margin), rows)
-    pts = []
-    for r, y in enumerate(ys):
-        row = xs if (r % 2 == 0 or not serpentine) else xs[::-1]
-        for x in row:
-            pts.append((float(x), float(y)))
-    return pts
+def grid_points(w, h, n=126, margin: float = 0.035, serpentine: bool = True):
+    """126 равноудалённых точек (блок центрируется, см. auto_grid).
+    Параметр n держим для совместимости тестов (игнорируем малые значения,
+    всегда строим плотную сетку CALIB_POINTS)."""
+    try:
+        total = int(n[1]) if isinstance(n, (tuple, list)) else int(n)
+    except Exception:
+        total = C.CALIB_POINTS
+    if total < 50:
+        total = C.CALIB_POINTS
+    return auto_grid(w, h, total, margin=margin, serpentine=serpentine)
 
 
 def auto_grid(w, h, n_total, margin=0.035, serpentine=True):
@@ -100,23 +94,13 @@ def wait_for_start(win, lines, w=640, h=200):
 def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                     grid=None, dwell_s=None, wait=True, margin=None):
     """Интерактив: смотри на точку. Возвращает (feats, screens).
-    Внутри: settle-игнор, резка саккад, robust-mean, сырые сэмплы в .npz для анализа.
-    grid: (cols, rows) | ("auto", N) — N равноудалённых точек; дефолт auto-120.
-      dwell_s: фиксация на точку (дефолт 1.5с для плотной / 3.0с для 3x3).
-      margin: отступ крайних точек от рамки (доля); дефолт 0.035 для плотной
-      (точки почти у краёв), 0.12 для 3x3. wait: стартовый экран с кнопкой."""
-    if isinstance(grid, (tuple, list)) and grid and grid[0] == "auto":
-        cols = rows = 0
-        dense = True
-    else:
-        cols, rows = grid or (C.CALIB_DENSE_COLS, C.CALIB_DENSE_ROWS)
-        dense = cols * rows > 16
-    mgn = float(margin) if margin is not None else (
-        C.CALIB_MARGIN_DENSE if dense else C.CALIB_MARGIN_SPARSE)
-    nspec = grid if (isinstance(grid, (tuple, list)) and bool(grid) and grid[0] == "auto") else (cols, rows)
+    Всегда 126 равноудалённых точек serpentine на весь экран.
+    Параметры grid/margin оставлены для совместимости и игнорируются."""
+    nspec = ("auto", C.CALIB_POINTS)
+    dense = True
+    mgn = float(margin) if margin is not None else C.CALIB_MARGIN
     pts = grid_points(screen_w, screen_h, n=nspec, margin=mgn, serpentine=True)
-    dwell = float(dwell_s) if dwell_s else (
-        C.CALIBDWELL_DENSE_S if len(pts) > 16 else C.CALIBDWELL_S)
+    dwell = float(dwell_s) if dwell_s else C.CALIBDWELL_S
     feats, screens = [], []
     avg_window = float(avg_s) if avg_s else float(C.CALIB_AVG_S)
     all_samples = []  # (point_idx, feat) для gaze_samples_*.npz
@@ -125,11 +109,9 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
     cv2.resizeWindow(win, screen_w // 2, screen_h // 2)
     if wait:
         total = len(pts) * (dwell + 0.3)
-        is_auto = isinstance(nspec, (tuple, list)) and bool(nspec) and nspec[0] == "auto"
-        grid_label = f"{nspec[1]} равноуд." if is_auto else f"{cols}x{rows}"
         try:
             wait_for_start(win, [
-                f"Точек: {len(pts)} ({grid_label}), ~{total:.0f} сек.",
+                f"Точек: {len(pts)}, ~{total:.0f} сек.",
                 "Сядь 60см, смотри на красную точку.",
                 "ПРОБЕЛ/клик — начать, Q — отмена.",
             ], w=screen_w // 2, h=200)

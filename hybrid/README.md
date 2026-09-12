@@ -26,7 +26,6 @@ python -m hybrid --source gaze --no-magnet :: чистый gaze-курсор б�
 - `clicks` — `DwellClicker` (фиксация → клик) + `ClickRouter` (wink по фронту + dwell только по снапу + cooldown).
 - `engine` — главный цикл `run_loop` (provider → snap → `set_pos`, клики, оверлей, `F9/F12`), `build_provider`, `needs_calibration`, `pick_compute_device`.
 - `profiles` — пути и миграция профилей (см. ниже).
-- `kb_targets` — цели dwell-клавиатуры (`keyboard_targets*`, геометрия 1-в-1 с `DwellKeyboard`).
 - `__main__` — CLI: `--check` / `--migrate` / `--probe` / `--source`.
 
 ## Профили

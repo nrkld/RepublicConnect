@@ -91,30 +91,22 @@ def save_profile(reg, W, H, tracker="facemesh"):
 
 def fullscreen_calibrate(cam, tracker, filt, tracker_name="facemesh", avg_s=None,
                          grid=None, dwell_s=None, wait=True, margin=None):
-    """Калибровка serpentine на весь экран (дефолт 126 равноудалённых точек). Возвращает (reg, W, H)."""
+    """Калибровка serpentine на весь экран (126 равноудалённых точек). Возвращает (reg, W, H)."""
     from ..gaze.normalize import robust_mean, is_saccade
     from .calibration import grid_points, wait_for_start
     W, H = screen_size()
-    if isinstance(grid, (tuple, list)) and grid and grid[0] == "auto":
-        nspec, dense, cols, rows = grid, True, 0, 0
-    else:
-        cols, rows = grid or (C.CALIB_DENSE_COLS, C.CALIB_DENSE_ROWS)
-        nspec, dense = (cols, rows), cols * rows > 16
-    mgn = float(margin) if margin is not None else (
-        C.CALIB_MARGIN_DENSE if dense else C.CALIB_MARGIN_SPARSE)
+    nspec = ("auto", C.CALIB_POINTS)
+    mgn = float(margin) if margin is not None else C.CALIB_MARGIN
     pts = grid_points(W, H, n=nspec, margin=mgn, serpentine=True)
-    dwell = float(dwell_s) if dwell_s else (
-        C.CALIBDWELL_DENSE_S if len(pts) > 16 else C.CALIBDWELL_S)
+    dwell = float(dwell_s) if dwell_s else C.CALIBDWELL_S
     avg_window = float(avg_s) if avg_s else float(C.CALIB_AVG_S)
     win = "EyeConnect: smotri na krasnuyu tochku"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
     cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     if wait:
         total = len(pts) * (dwell + 0.3)
-        is_auto = isinstance(nspec, (tuple, list)) and bool(nspec) and nspec[0] == "auto"
-        grid_label = f"{nspec[1]} ravnoud." if is_auto else f"{cols}x{rows}"
         try:
-            wait_for_start(win, [f"Tochek: {len(pts)} ({grid_label}), ~{total:.0f} sek.",
+            wait_for_start(win, [f"Tochek: {len(pts)}, ~{total:.0f} sek.",
                                  "Syad 60sm, smotri na krasnuyu tochku.",
                                  "PROBEL/klik — nachat, Esc — otmena."], w=W, h=H)
         except KeyboardInterrupt:

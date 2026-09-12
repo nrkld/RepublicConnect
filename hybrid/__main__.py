@@ -104,7 +104,7 @@ def main(argv=None):
     ap.add_argument("--tracker", choices=["unigaze", "l2cs", "facemesh"], default="unigaze")
     ap.add_argument("--camera", type=int, default=0)
     ap.add_argument("--recalib", action="store_true",
-                    help="принудительная калибровка (~126 точек, ~4 мин)")
+                    help="принудительная калибровка (126 точек, ~4 мин)")
     ap.add_argument("--no-calib", action="store_true",
                     help="не калибровать даже без профиля (упадёт с подсказкой)")
     ap.add_argument("--fps", type=float, default=120.0, help="частота цикла, Гц")
