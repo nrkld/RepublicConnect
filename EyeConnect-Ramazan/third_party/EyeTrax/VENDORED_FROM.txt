@@ -1,0 +1,8 @@
+Source: https://github.com/ck-zhang/EyeTrax (branch master)
+Vendored: 2026-09-10, package dir eyetrax/ + LICENSE.EyeTrax-MIT + README.upstream.md
+License: MIT (see LICENSE.EyeTrax-MIT)
+Upstream version: 0.2.2 (pyproject dynamic version, CITATION.cff: Zhang C. 2025)
+DOI: 10.5281/zenodo.17188537
+Integration: eyeconnect/gaze/eyetrax_backend.py (pip `eyetrax` preferred, fallback to this copy)
+Pip deps upstream: opencv-python, mediapipe, numpy<2, scikit-learn, scipy, screeninfo, pyvirtualcam
+Note: on Raspberry Pi use this vendored copy (no pyvirtualcam/screeninfo needed for extract_features/predict).

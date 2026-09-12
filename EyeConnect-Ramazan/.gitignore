@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+~$*.docx
+*.csv
+*.task
+*.tmp
+webcam_check.jpg
+.eyeconnect/

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "pyright": {
+      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pyright-langserver.exe", "--stdio"],
+      "extensions": [".py", ".pyi"]
+    },
+    "ruff": {
+      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ruff.exe", "server"],
+      "extensions": [".py", ".pyi"]
+    }
+  },
+  "formatter": {
+    "ruff": {
+      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ruff.exe", "format", "$FILE"],
+      "extensions": [".py", ".pyi"]
+    }
+  },
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@playwright/mcp"],
+      "enabled": true
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": false,
+      "headers": {
+        "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}"
+      }
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "github": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-github"],
+      "enabled": false,
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "NPM_CONFIG_STRICT_SSL": "false"
+      }
+    },
+    "filesystem": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\nisno\\OneDrive\\Pictures\\Ramazan", "C:\\Users\\nisno\\.eyeconnect"],
+      "enabled": true,
+      "environment": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "NPM_CONFIG_STRICT_SSL": "false"
+      }
+    },
+    "fetch": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "mcp-fetch"],
+      "enabled": true,
+      "environment": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "NPM_CONFIG_STRICT_SSL": "false"
+      }
+    },
+    "memory": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-memory"],
+      "enabled": true,
+      "environment": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "NPM_CONFIG_STRICT_SSL": "false"
+      }
+    },
+    "sequential-thinking": {
+      "type": "local",
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "enabled": true,
+      "environment": {
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0",
+        "NPM_CONFIG_STRICT_SSL": "false"
+      }
+    }
+  },
+  "permission": {
+    "skill": {
+      "*": "allow"
+    }
+  }
+}

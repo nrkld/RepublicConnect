@@ -1,0 +1,2 @@
+# Только Windows (UI Automation). На других ОС магнит не работает.
+uiautomation; sys_platform == 'win32'

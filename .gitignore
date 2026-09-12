@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.eyeconnect/
+*.csv
+*.npz
+webcam_check.jpg
+.venv/
+.pytest_cache/
+.ruff_cache/

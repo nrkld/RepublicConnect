@@ -1,0 +1,6 @@
+Source: https://github.com/elliottzheng/face-detection (branch master)
+Vendored: 2026-09-10, package dir face_detection/ + LICENSE.face-detection-MIT
+Why vendored: PyPI face-detection 0.2.2 has old API (no RetinaFace class),
+L2CS-Net pipeline needs git-master API (from face_detection import RetinaFace).
+Detector weights auto-download on first RetinaFace() use (no git needed).
+Used by: eyeconnect/gaze/l2cs_backend.py via third_party/L2CS-Net/l2cs.

@@ -1,0 +1,9 @@
+# Raspberry Pi 4B: ставить строго эти версии (TFLite CPU, solutions API)
+# Нужен 64-bit Pi OS + apt: libgl1 libglib2.0-0 libatlas-base-dev
+opencv-python==4.8.1.78
+numpy==1.26.4
+scikit-learn==1.3.2
+pillow==10.4.0
+mediapipe==0.10.14
+# EyeTrax на Pi: pip-версию НЕ ставим (тянет pyvirtualcam/screeninfo).
+# Используем vendored third_party/EyeTrax через eyeconnect/gaze/eyetrax_backend.py

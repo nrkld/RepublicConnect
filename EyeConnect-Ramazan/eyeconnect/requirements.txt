@@ -1,0 +1,30 @@
+# Laptop (Windows, Python 3.10-3.12) + Raspberry Pi 4B (Python 3.10/3.11) MVP
+# ВНИМАНИЕ: mediapipe долго не выпускал wheels под newest Python — на 3.13 установка может упасть.
+# Рекомендуется Python 3.11.
+opencv-python>=4.8
+numpy>=1.24,<2.0
+scikit-learn>=1.3
+pillow>=10.0
+# MediaPipe: на ноутбуке ставится 1.x, на Pi — 0.10.x (TFLite).
+# Ставим без пина, код поддерживает оба API (solutions + tasks).
+mediapipe>=0.10.21
+# EyeTrax CV-backend (webcam gaze + калибровки 9p/5p/dense + фильтры).
+# Vendored копия в third_party/EyeTrax на случай офлайна/Pi.
+eyetrax>=0.2.2
+# L2CS-Net точный gaze (pitch/yaw по лицу, ResNet50 Gaze360).
+# torch CPU хватит для dwell (~8fps); для 30fps нужен CUDA-torch + GPU.
+torch>=2.0
+torchvision>=0.15
+safetensors>=0.4
+huggingface_hub>=0.20
+# face_detection с RetinaFace: нужен git-master (elliottzheng/face-detection),
+# на PyPI только старый 0.2.2 без RetinaFace. Без git: скачать ZIP и
+# pip install <папка>. В проекте уже лежит third_party/face-detection/.
+# UniGaze ViT-H (самый точный трекер, --tracker unigaze, нужен CUDA + ~4ГБ VRAM).
+# Веса MG-NC-RAI (некоммерческие): качаются сами в HF-кэш (~2.5ГБ), в git не коммитить.
+# На Pi НЕ ставить (только l2cs/facemesh) — см. requirements-pi.txt.
+unigaze>=0.1.3
+face-alignment>=1.5.0
+timm==0.3.2
+scikit-image>=0.21
+tqdm>=4.60

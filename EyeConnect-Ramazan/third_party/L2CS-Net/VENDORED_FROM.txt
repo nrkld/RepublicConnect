@@ -1,0 +1,10 @@
+Source: https://github.com/Ahmednull/L2CS-Net (branch main, MIT)
+Vendored: 2026-09-10, package dir l2cs/ + LICENSE.L2CS-MIT
+License: MIT
+Paper: L2CS-Net, ICIP 2022 (arXiv:2203.03339). 3.92 deg MPIIGaze / 10.41 deg Gaze360.
+Weights (NOT vendored, 96MB): ~/.eyeconnect/models/l2cs_gaze360_resnet50.safetensors
+  mirror HuggingFace py-feat/l2cs (same values as official L2CSNet_gaze360.pkl,
+  safetensors container). Override: env L2CS_WEIGHTS=/path/to/weights.
+Integration: eyeconnect/gaze/l2cs_backend.py (L2CSTracker).
+Pip deps: torch, torchvision, safetensors, huggingface_hub (+ face_detection, see ../face-detection).
+Note: CPU torch ~8fps (dwell OK); for 30fps install CUDA torch + GPU.
