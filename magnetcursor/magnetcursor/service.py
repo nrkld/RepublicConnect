@@ -175,7 +175,7 @@ def main():
                         fg = foreground_hwnd()
                     except Exception:
                         fg = 0
-                    if fg and fg != cache.last_fg:
+                    if fg and getattr(cache, "supported", True) and fg != cache.last_fg:
                         snap.reset()
                         cache.clear()
                         cache.request_refresh()

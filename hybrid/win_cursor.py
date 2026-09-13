@@ -40,12 +40,12 @@ def get_pos():
 
 
 def set_pos(x, y):
-    """Поставить курсор. True если вызов ушёл в ОС."""
+    """Поставить курсор. True если ОС подтвердила (BOOL != 0)."""
     if not IS_WIN:
         return False
     try:
-        ctypes.windll.user32.SetCursorPos(int(x), int(y))
-        return True
+        ok = ctypes.windll.user32.SetCursorPos(int(x), int(y))
+        return bool(ok)
     except Exception:
         return False
 
@@ -56,11 +56,14 @@ set_sys_cursor = set_pos
 
 def do_click(x, y, button="left"):
     """Клик в точке: двигает курсор + mouse_event. Вне Windows — False."""
+    if button not in ("left", "right"):
+        raise ValueError(f"unknown button: {button!r}")
     if not IS_WIN:
         return False
     try:
         u = ctypes.windll.user32
-        set_pos(x, y)
+        if not set_pos(x, y):
+            return False
         if button == "right":
             u.mouse_event(0x0008, 0, 0, 0, 0)
             u.mouse_event(0x0010, 0, 0, 0, 0)
@@ -108,9 +111,14 @@ def screen_size():
     try:
         import tkinter as tk
         r = tk.Tk()
-        r.withdraw()
-        w, h = int(r.winfo_screenwidth()), int(r.winfo_screenheight())
-        r.destroy()
+        try:
+            r.withdraw()
+            w, h = int(r.winfo_screenwidth()), int(r.winfo_screenheight())
+        finally:
+            try:
+                r.destroy()
+            except Exception:
+                pass
         return w, h
     except Exception:
         return 1920, 1080

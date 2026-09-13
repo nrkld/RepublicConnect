@@ -60,7 +60,7 @@ class MagnetSnap:
         best, best_d = None, self.cap
         for t in targets:
             d = t.dist_to_rect(x, y)
-            if d <= best_d:
+            if d <= self.cap and (best is None or d < best_d):
                 best, best_d = t, d
         if best is not None:
             self.current = best

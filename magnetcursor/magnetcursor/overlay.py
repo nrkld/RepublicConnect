@@ -50,13 +50,20 @@ def _draw_progress(cv, x, y, frac):
 
 
 class Overlay:
+    _QMAX = 64
+
     def __init__(self):
-        self._q = queue.Queue()
+        self._q = queue.Queue(maxsize=self._QMAX)
         self._out = queue.Queue()  # действия из окна: 'toggle' / 'quit'
         self._thread = None
 
     def start(self):
         if self._thread is None and _HAS_TK:
+            try:
+                while True:
+                    self._q.get_nowait()
+            except queue.Empty:
+                pass
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
 
@@ -103,6 +110,11 @@ class Overlay:
 
     def stop(self):
         try:
+            try:
+                while True:
+                    self._q.get_nowait()
+            except queue.Empty:
+                pass
             self._q.put_nowait(("STOP", None))
         except Exception:
             pass

@@ -270,6 +270,7 @@ class TargetCache:
         self._stop = threading.Event()
         self._wake = threading.Event()  # досрочное обновление (смена фокуса)
         self._thread = None
+        self.supported = bool(_HAS_UIA)
         self.last_ms = 0.0
         self.last_count = 0
         self.last_is_browser = False
@@ -278,12 +279,20 @@ class TargetCache:
 
     def start(self):
         if self._thread is None and _HAS_UIA:
+            self._stop.clear()
+            self._wake.clear()
             self._thread = threading.Thread(target=self._loop, daemon=True)
             self._thread.start()
 
-    def stop(self):
+    def stop(self, timeout=2.0):
         self._stop.set()
         self._wake.set()
+        th, self._thread = self._thread, None
+        if th is not None and th.is_alive():
+            try:
+                th.join(timeout=timeout)
+            except Exception:
+                pass
 
     def request_refresh(self):
         self._wake.set()

@@ -253,6 +253,7 @@ def run_cursor(cam, tracker, filt, reg, W, H, syscursor=True, click=False, click
     img = np.zeros((H, W, 3), np.uint8) if overlay else None  # переиспользуем буфер — не аллоцируем каждый кадр
     sm_x, sm_y = W / 2, H / 2  # сглаженный системный курсор
     has_pos = False  # первое предсказание — без jump-гейта (истории нет)
+    jump_streak = 0
     prev_ff = None  # прошлая фича для гейта морганий (фильтр битым кадром не кормим)
     wink_msg, wink_until = "", 0.0  # последний ручной клик для статус-окна
     alpha = 0.45
@@ -264,14 +265,22 @@ def run_cursor(cam, tracker, filt, reg, W, H, syscursor=True, click=False, click
         while True:
             f = cam.read()
             if f is None:
+                if cv2.waitKey(30) & 0xFF in (ord("q"), ord("Q"), 27):
+                    break
                 continue
             feat, conf, dbg = tracker.process(f)
             if overlay:
                 img.fill(0)
-            if feat is None or conf < C.MP_LOST_CONF:
+            try:
+                conf_v = float(conf)
+            except Exception:
+                conf_v = float("-inf")
+            if feat is None or not conf_v >= C.MP_LOST_CONF:
                 filt.reset()
                 anchor = None
                 prev_ff = None
+                has_pos = False
+                jump_streak = 0
                 if overlay:
                     cv2.putText(img, "Lico ne naydeno — syad pered kameroy",
                                 (60, H // 2), cv2.FONT_HERSHEY_SIMPLEX, 1.4, (0, 165, 255), 3)
@@ -290,23 +299,39 @@ def run_cursor(cam, tracker, filt, reg, W, H, syscursor=True, click=False, click
                         cv2.imshow(win, f)
                         if cv2.waitKey(30) & 0xFF in (ord("q"), ord("Q"), 27):
                             break
+                    else:
+                        cv2.imshow(win, img)
+                        if cv2.waitKey(30) & 0xFF in (ord("q"), ord("Q"), 27):
+                            break
                     continue
                 prev_ff = np.asarray(feat, dtype=float)
                 sm = filt.update(feat)
                 gx, gy = reg.predict(sm)
                 gx = float(np.clip(gx, 0, W - 1))
                 gy = float(np.clip(gy, 0, H - 1))
+                if not (np.isfinite(gx) and np.isfinite(gy)):
+                    cv2.imshow(win, img if overlay else f)
+                    if cv2.waitKey(30) & 0xFF in (ord("q"), ord("Q"), 27):
+                        break
+                    continue
                 # анти-моргание: прыжок дальше jump_px за кадр — не двигаем курсор
                 if has_pos:
                     jump = ((gx - sm_x) ** 2 + (gy - sm_y) ** 2) ** 0.5
                     if jump > jump_px:
-                        if not overlay:
-                            cv2.putText(f, "blink?", (10, 30),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-                            cv2.imshow(win, f)
+                        jump_streak += 1
+                        if jump_streak >= 3:
+                            jump_streak = 0
+                            sm_x, sm_y = gx, gy
+                        else:
+                            if not overlay:
+                                cv2.putText(f, "blink?", (10, 30),
+                                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                            cv2.imshow(win, img if overlay else f)
                             if cv2.waitKey(30) & 0xFF in (ord("q"), ord("Q"), 27):
                                 break
-                        continue
+                            continue
+                    else:
+                        jump_streak = 0
                 has_pos = True
                 # EMA для системного курсора — убрать дрожь
                 sm_x = alpha * gx + (1 - alpha) * sm_x

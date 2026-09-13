@@ -72,11 +72,22 @@ class GazeProvider:
         self._grace_left = self.jump_grace
 
     def poll(self):
-        f = self.cam.read()
+        try:
+            f = self.cam.read()
+        except Exception:
+            return PointerSample(self._sm_x, self._sm_y, False, None, "no-frame", "gaze")
         if f is None:
             return PointerSample(self._sm_x, self._sm_y, False, None, "no-frame", "gaze")
-        feat, conf, dbg = self.tracker.process(f)
-        if feat is None or conf < self.lost_conf:
+        try:
+            out = self.tracker.process(f)
+            feat, conf, dbg = out
+        except Exception:
+            return PointerSample(self._sm_x, self._sm_y, False, None, "no-face", "gaze")
+        try:
+            conf_v = float(conf)
+        except Exception:
+            conf_v = float("-inf")
+        if feat is None or not conf_v >= self.lost_conf:
             try:
                 self.filt.reset()
             except Exception:
@@ -94,8 +105,18 @@ class GazeProvider:
             self._prev = tuple(feat)
         except Exception:
             self._prev = feat
-        sm = self.filt.update(feat)
-        gx, gy = self.reg.predict(sm)
+        try:
+            sm = self.filt.update(feat)
+        except Exception:
+            return PointerSample(self._sm_x, self._sm_y, False, None, "no-face", "gaze")
+        try:
+            gx, gy = self.reg.predict(sm)
+            gx = float(gx)
+            gy = float(gy)
+        except Exception:
+            return PointerSample(self._sm_x, self._sm_y, False, None, "jump", "gaze")
+        if not (math.isfinite(gx) and math.isfinite(gy)):
+            return PointerSample(self._sm_x, self._sm_y, False, None, "jump", "gaze")
         gx = float(min(max(gx, 0), self.w - 1))
         gy = float(min(max(gy, 0), self.h - 1))
         # анти-моргание на выходе: телепорт дальше jump_px за кадр — стоим.
@@ -250,14 +271,29 @@ class AsyncGaze:
         Первые инференсы в свежем потоке катастрофически медленные
         (замер: 16-21с на RTX 5060 — per-thread init CUDA/cuDNN),
         дальше быстро. warmup>0 переносит эту цену в предсказуемый старт."""
-        if self._thread is None:
-            self._thread = threading.Thread(target=self._loop, daemon=True)
-            self._thread.start()
+        with self._lock:
+            alive = self._thread is not None and self._thread.is_alive()
+            if not alive:
+                self._stop_ev.clear()
+                self._thread = threading.Thread(target=self._loop, daemon=True)
+                self._thread.start()
         if warmup_polls > 0:
             import time as _t
-            deadline = _t.time() + timeout
-            while self.stats()["polls"] < warmup_polls and _t.time() < deadline:
-                _t.sleep(0.1)
+            try:
+                deadline_self = self._time() + timeout
+            except Exception:
+                deadline_self = None
+            deadline_real = _t.time() + timeout
+            while self.stats()["polls"] < warmup_polls:
+                if _t.time() >= deadline_real:
+                    break
+                if deadline_self is not None:
+                    try:
+                        if self._time() >= deadline_self:
+                            break
+                    except Exception:
+                        pass
+                _t.sleep(0.05)
         return self
 
     def _loop(self):
@@ -267,8 +303,20 @@ class AsyncGaze:
                 s = self.inner.poll()
             except Exception:
                 s = PointerSample(0, 0, False, None, "error", "gaze")
+                now = self._time()
                 with self._lock:
                     self._errors += 1
+                    if self._t0 is None:
+                        self._t0 = now
+                    self._prev, self._last = self._last, (s, now)
+                    self._polls += 1
+                    self._last_dur = now - t0
+                try:
+                    import time as _t
+                    _t.sleep(0.01)
+                except Exception:
+                    pass
+                continue
             now = self._time()
             with self._lock:
                 if self._t0 is None:
@@ -293,10 +341,16 @@ class AsyncGaze:
         with self._lock:
             self._prev = None
             self._last = None
+            self._polls = 0
+            self._errors = 0
+            self._t0 = None
+            self._last_dur = 0.0
 
     def stop(self, timeout=2.0):
+        with self._lock:
+            th = self._thread
+            self._thread = None
         self._stop_ev.set()
-        th, self._thread = self._thread, None
         if th is not None:
             th.join(timeout=timeout)
 
@@ -307,7 +361,7 @@ class AsyncGaze:
             dur, err = self._last_dur, self._errors
             alive = self._thread is not None and self._thread.is_alive()
         now = self._time()
-        el = max(now - t0, 1e-6) if t0 else 0.0
+        el = max(now - t0, 1e-6) if t0 is not None else 0.0
         age = (now - last[1]) * 1000 if last else -1.0
         return {"polls": polls, "hz": polls / el if el else 0.0,
                 "age_ms": age, "last_ms": dur * 1000, "errors": err,

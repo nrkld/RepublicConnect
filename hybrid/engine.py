@@ -151,13 +151,15 @@ def needs_calibration(tracker="unigaze", home=None):
         if m is None:
             return "нет метаданных"
         meta = json.loads(m.read_text(encoding="utf-8"))
-        if meta.get("screen_w") != W or meta.get("screen_h") != H:
-            return (f"профиль {meta.get('screen_w')}x{meta.get('screen_h')}, "
-                    f"экран {W}x{H}")
-        if meta.get("tracker", "facemesh") != tracker:
-            return f"профиль от {meta.get('tracker')}, нужен {tracker}"
-    except Exception:
-        return None
+    except Exception as e:
+        return f"битые метаданные ({e})"
+    if not isinstance(meta, dict):
+        return "битые метаданные (не словарь)"
+    if meta.get("screen_w") != W or meta.get("screen_h") != H:
+        return (f"профиль {meta.get('screen_w')}x{meta.get('screen_h')}, "
+                f"экран {W}x{H}")
+    if meta.get("tracker", "facemesh") != tracker:
+        return f"профиль от {meta.get('tracker')}, нужен {tracker}"
     return None
 
 
@@ -301,17 +303,13 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
     own_cache = targets is None
     cache, fg_fn = ((targets, lambda: 0) if targets is not None
                      else load_targets(strict=strict))
-    if targets is not None and not hasattr(targets, "last_fg"):
-        cache.last_fg = 0
-    try:
-        cache.start()
-    except Exception:
-        pass
+    if targets is not None and not isinstance(targets, list):
+        try:
+            if not hasattr(targets, "last_fg"):
+                cache.last_fg = 0
+        except Exception:
+            pass
     ov = overlay if overlay is not None else load_overlay()
-    try:
-        ov.set_state(True)
-    except Exception:
-        pass
 
     def note(x, y):
         fn = getattr(provider, "note_output", None)
@@ -337,27 +335,53 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
     def crash_log(ex):
         try:
             import traceback
-            with open(_prof.crash_log_path(), "a", encoding="utf-8") as f:
+            try:
+                _prof.ensure_hybrid_dir()
+            except Exception:
+                pass
+            lp = _prof.crash_log_path()
+            try:
+                if lp.exists() and lp.stat().st_size > 1000000:
+                    lp.write_text("", encoding="utf-8")
+            except Exception:
+                pass
+            with open(lp, "a", encoding="utf-8") as f:
                 f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + repr(ex) + "\n")
                 traceback.print_exc(file=f)
         except Exception:
             pass
 
-    cur.ensure_dpi_aware()
-    on = True
-    last_key = 0.0
-    shown = None
-    hinted_browser = False
-    next_hint_check = 0.0
-    next_count_push = 0.0
-    last_out = cur.get_pos()
-    cooldown_until = 0.0
-    iters = 0
-    t_start = tfn()
-    deadline = None if max_seconds is None else t_start + max_seconds
-    print(f"Hybrid ON (source={source} magnet={'on' if magnet else 'off'}; "
-          f"F9 toggle, F12 quit). capture={cap} release={rel}")
     try:
+        try:
+            cache.start()
+        except Exception:
+            pass
+        try:
+            ov.set_state(True)
+        except Exception:
+            pass
+        try:
+            fn = getattr(cur, "ensure_dpi_aware", None)
+            if callable(fn):
+                fn()
+        except Exception:
+            pass
+        on = True
+        last_key = 0.0
+        shown = None
+        hinted_browser = False
+        next_hint_check = 0.0
+        next_count_push = 0.0
+        try:
+            last_out = cur.get_pos()
+        except Exception:
+            last_out = (0.0, 0.0)
+        cooldown_until = 0.0
+        iters = 0
+        t_start = tfn()
+        deadline = None if max_seconds is None else t_start + max_seconds
+        print(f"Hybrid ON (source={source} magnet={'on' if magnet else 'off'}; "
+              f"F9 toggle, F12 quit). capture={cap} release={rel}")
         while True:
             if max_iters is not None and iters >= max_iters:
                 break
@@ -414,7 +438,10 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                     except Exception:
                         pass
                     shown = None
-                    last_out = (ix, iy)
+                    try:
+                        last_out = cur.get_pos()
+                    except Exception:
+                        last_out = (ix, iy)
                 if now >= next_count_push:
                     next_count_push = now + 1.0
                     try:

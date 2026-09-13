@@ -10,6 +10,10 @@ class EMA:
 
     def update(self, x):
         x = np.asarray(x, dtype=float)
+        if not bool(np.all(np.isfinite(x))):
+            if self.v is None:
+                return np.zeros_like(x)
+            return self.v.copy()
         self.v = x if self.v is None else self.a * x + (1 - self.a) * self.v
         return self.v.copy()
 
@@ -29,6 +33,8 @@ class Kalman2D:
 
     def update(self, z, dt=1 / 30):
         z = np.asarray(z, dtype=float)
+        if not bool(np.all(np.isfinite(z))):
+            return self.x[:2].copy()
         # clamp dt: защита от зависших кадров / скачков времени
         dt = float(max(1e-3, min(0.2, dt)))
         F = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]])

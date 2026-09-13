@@ -190,6 +190,8 @@ class RBFMapper:
     kind = "rbf"
     SIGMA_GRID = (0.5, 1.0, 2.0, 4.0)
     NUGGET = 1e-6
+    SIGMA_FLOOR = 1e-3
+    KERNEL_FLOOR = 1e-6
 
     def __init__(self, sigma="auto"):
         self.sigma_opt = sigma
@@ -217,7 +219,10 @@ class RBFMapper:
         # медиана дистанции до ближайшего соседа (масштаб сетки)
         d = np.linalg.norm(X[:, None, :] - X[None, :, :], axis=-1)
         np.fill_diagonal(d, np.inf)
-        return max(float(np.median(np.min(d, axis=1))), 1e-9)
+        med = float(np.median(np.min(d, axis=1)))
+        if not np.isfinite(med):
+            return RBFMapper.SIGMA_FLOOR
+        return max(med, RBFMapper.SIGMA_FLOOR)
 
     def fit(self, feats_xy, screens_xy):
         X = np.asarray(feats_xy, dtype=float)
@@ -236,8 +241,9 @@ class RBFMapper:
                 if err == err and err < best_err:  # err==err отсекает nan
                     best, best_err = base * f, err
             self.sigma = best if best else base * 2.0
+            self.sigma = max(float(self.sigma), self.SIGMA_FLOOR)
         else:
-            self.sigma = max(float(self.sigma_opt), 1e-9)
+            self.sigma = max(float(self.sigma_opt), self.SIGMA_FLOOR)
         self.weights = self._solve(X, Y, self.sigma)
         self.trained = True
         return self
@@ -263,8 +269,15 @@ class RBFMapper:
     def predict(self, feat_xy):
         if not self.trained:
             raise RuntimeError("RBFMapper не обучен: сначала fit() или load()")
-        k = self._kernel(np.asarray(feat_xy, dtype=float).reshape(1, -1),
-                         self.centers, self.sigma)
+        q = np.asarray(feat_xy, dtype=float).reshape(1, -1)
+        if not bool(np.all(np.isfinite(q))):
+            m = np.mean(self.targets, axis=0)
+            return float(m[0]), float(m[1])
+        k = self._kernel(q, self.centers, self.sigma)
+        if float(np.max(k)) < self.KERNEL_FLOOR:
+            j = int(np.argmin(np.sum((self.centers - q) ** 2, axis=1)))
+            t = self.targets[j]
+            return float(t[0]), float(t[1])
         p = (k @ self.weights)[0]
         return float(p[0]), float(p[1])
 
@@ -297,7 +310,7 @@ class RBFMapper:
             d = np.load(path, allow_pickle=True)
             self.centers = np.asarray(d["centers"], dtype=float)
             self.targets = np.asarray(d["targets"], dtype=float)
-            self.sigma = float(d["sigma"])
+            self.sigma = max(float(d["sigma"]), self.SIGMA_FLOOR)
             self.weights = self._solve(self.centers, self.targets, self.sigma)
         except Exception as e:
             raise RuntimeError(f"Профиль битый ({path}): {e}. Перекалибруйте") from e
