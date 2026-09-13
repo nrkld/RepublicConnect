@@ -35,13 +35,11 @@ def _download_model(url: str, dest, timeout: int = 60):
                 if not chunk:
                     break
                 f.write(chunk)
-        import os
         if os.path.getsize(tmp) < 1_000_000:
             raise RuntimeError(f"модель слишком маленькая: {tmp}")
         os.replace(tmp, dest)
     except Exception:
         try:
-            import os
             if os.path.exists(tmp):
                 os.remove(tmp)
         except Exception:

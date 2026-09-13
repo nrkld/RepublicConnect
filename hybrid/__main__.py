@@ -108,7 +108,7 @@ def main(argv=None):
     ap.add_argument("--no-calib", action="store_true",
                     help="не калибровать даже без профиля (упадёт с подсказкой)")
     ap.add_argument("--fps", type=float, default=120.0, help="частота цикла, Гц")
-    ap.add_argument("--no-dwell", action="store_true", help="без dwell-кликов")
+    ap.add_argument("--dwell", action="store_true", help="включить dwell-клики (по умолчанию выкл)")
     ap.add_argument("--dwell-s", type=float, default=1.2, help="фиксация для dwell-клика, сек")
     ap.add_argument("--strict", dest="strict", action="store_true",
                     help="магнит только по кнопкам/ссылкам/меню")
@@ -146,7 +146,7 @@ def cmd_run(args):
                         magnet=not args.no_magnet,
                         wink_click=not args.no_wink_click,
                         strict=args.strict,
-                        dwell_click=not args.no_dwell,
+                        dwell_click=args.dwell,
                         dwell_s=args.dwell_s,
                         interval=1.0 / max(1.0, args.fps),
                         max_seconds=args.seconds)

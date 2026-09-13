@@ -45,6 +45,12 @@ class Camera:
                 except Exception:
                     pass
                 self.cap = self._open(self.index)
+                try:
+                    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.w)
+                    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.h)
+                    self.cap.set(cv2.CAP_PROP_FPS, C.FPS_TARGET)
+                except Exception:
+                    pass
                 self._fails = 0
             return None
         self._fails = 0

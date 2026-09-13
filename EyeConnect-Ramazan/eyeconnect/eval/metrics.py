@@ -16,8 +16,10 @@ def wpm(text: str, seconds: float) -> float:
 def px_to_deg(err_px: float, px_mm: float = None, dist_mm: float = None) -> float:
     # px_mm по горизонтали; для квадратных пикселей вертикаль та же.
     # Если экран не 24" — поправьте SCREEN_W_MM/VIEW_DIST_MM в config.py, иначе ошибка до 30%.
-    px_mm = px_mm or (C.SCREEN_W_MM / C.SCREEN_W_PX)
-    dist_mm = dist_mm or C.VIEW_DIST_MM
+    if px_mm is None:
+        px_mm = C.SCREEN_W_MM / C.SCREEN_W_PX
+    if dist_mm is None:
+        dist_mm = C.VIEW_DIST_MM
     if dist_mm <= 0:
         return 0.0
     return math.degrees(math.atan((max(0.0, err_px) * px_mm) / dist_mm))

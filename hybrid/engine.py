@@ -281,7 +281,7 @@ def build_provider(source="auto", tracker="unigaze", camera=0, no_wink=False,
 
 
 def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
-             dwell_click=True, dwell_s=1.2, dwell_radius=45.0,
+             dwell_click=False, dwell_s=1.2, dwell_radius=45.0,
              targets=None, overlay=None, cursor=None,
              capture=None, release=None, flick=None, cooldown=None,
              away_frames=None, interval=1 / 120, max_iters=None,
@@ -295,8 +295,6 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
     base = preset_m if source == "mouse" else preset_g
     cap = capture if capture is not None else base["capture"]
     rel = release if release is not None else base["release"]
-    flk = flick if flick is not None else base["flick"]
-    awy = away_frames if away_frames is not None else base["away_frames"]
     cool = cooldown if cooldown is not None else base["cooldown"]
     snap_m = MagnetSnap(
         capture if capture is not None else preset_m["capture"],
@@ -315,7 +313,7 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
     own_cache = targets is None
     cache, fg_fn = ((targets, lambda: 0) if targets is not None
                      else load_targets(strict=strict))
-    if targets is not None and not isinstance(targets, list):
+    if targets is not None and not isinstance(targets, (list, tuple)):
         try:
             if not hasattr(targets, "last_fg"):
                 cache.last_fg = 0
@@ -335,14 +333,23 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
         """Решение роутера + физический клик (координаты — снапнутая точка)."""
         ev = router.update(sample, snapped, out[0], out[1])
         if ev is None or not getattr(cur, "IS_WIN", True):
-            return
+            return None
         do_click = getattr(cur, "do_click", None)
         if not callable(do_click):
-            return
+            return None
         ok = do_click(ev.x, ev.y, button="right" if ev.kind == "right" else "left")
         label = {"right": "RIGHT CLICK!", "left": "LEFT CLICK!",
                  "dwell": "DWELL CLICK!"}.get(ev.kind, "CLICK!")
         print(label if ok else "click N/A")
+        return ev
+
+    def _clear_shown():
+        nonlocal shown
+        shown = None
+        try:
+            ov.set_target(None)
+        except Exception:
+            pass
 
     def crash_log(ex):
         try:
@@ -473,9 +480,12 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                 tgts = []
                 if magnet and on:
                     try:
-                        tgts = list(cache) if isinstance(cache, list) else list(cache.get())
+                        tgts = list(cache) if isinstance(cache, (list, tuple)) else list(cache.get())
                     except Exception:
                         tgts = []
+                if shown is not None and not any(
+                        (t.left, t.top, t.right, t.bottom) == shown for t in tgts):
+                    _clear_shown()
                 sn = snap_m if sample.src == "mouse" else snap_g
                 if now < cooldown_until:
                     # пауза после вырывания — не трогаем; якорь = факт (как last_set)
@@ -516,7 +526,10 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                                     pass
                                 if t:
                                     print(f"snap: {t.name[:40]} ({int(out[0])},{int(out[1])})")
-                            _fire(sample, snapped, out)
+                            if _fire(sample, snapped, out) is not None:
+                                for s in snaps:
+                                    s.reset()
+                                _clear_shown()
                     else:  # gaze: курсор ведём мы, всегда ставим
                         sx, sy, t, snapped = sn.update(ix, iy, tgts)
                         out = (sx, sy) if snapped else (ix, iy)
@@ -533,7 +546,10 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                                 pass
                             if t:
                                 print(f"snap: {t.name[:40]} ({int(out[0])},{int(out[1])})")
-                        _fire(sample, snapped, out)
+                        if _fire(sample, snapped, out) is not None:
+                            for s in snaps:
+                                s.reset()
+                            _clear_shown()
                 if on_frame is not None:
                     try:
                         on_frame(sample, last_out)

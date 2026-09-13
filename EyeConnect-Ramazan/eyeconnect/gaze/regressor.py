@@ -93,7 +93,7 @@ class GazeRegressor:
         return np.linalg.norm(preds - Y, axis=1)
 
     def loo_error(self, feats_xy, screens_xy, **kw):
-        """Leave-one-out: честная оценка без повторного прогона. N=9 — быстро."""
+        """Leave-one-out: честная оценка без повторного прогона. N=126 — секунды."""
         from copy import deepcopy
         X = np.asarray(feats_xy, dtype=float)
         Y = np.asarray(screens_xy, dtype=float)

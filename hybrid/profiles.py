@@ -74,18 +74,18 @@ def resolve_gaze_meta(home=None):
 def migrate_legacy(home=None, overwrite=False):
     """Скопировать legacy-профиль в гибрид (legacy остаётся). -> {имя: путь назначения}."""
     done = {}
-    leg = legacy_eyeconnect_dir(home)
     dst_dir = ensure_hybrid_dir(home)
-    for name in (GAZE_NPZ, GAZE_META):
-        src = leg / name
+    jobs = [(legacy_eyeconnect_dir(home) / n) for n in (GAZE_NPZ, GAZE_META)]
+    jobs.append(legacy_magnet_dir(home) / MAGNET_JSON)
+    for src in jobs:
         if not src.exists():
             continue
-        dst = dst_dir / name
+        dst = dst_dir / src.name
         if dst.exists() and not overwrite:
             continue
         try:
             shutil.copy2(src, dst)
-            done[name] = str(dst)
+            done[src.name] = str(dst)
         except Exception:
             pass
     return done

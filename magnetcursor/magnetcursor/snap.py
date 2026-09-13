@@ -36,7 +36,8 @@ class Target:
 class MagnetSnap:
     def __init__(self, capture_radius=120.0, release_radius=180.0,
                  flick_px=45.0, away_frames=3):
-        assert release_radius >= capture_radius, "выход должен быть >= входа"
+        if not release_radius >= capture_radius:
+            raise ValueError("выход должен быть >= входа")
         self.cap = capture_radius
         self.rel = release_radius
         self.flick_px = flick_px      # резкий рывок за кадр = сразу отпустить

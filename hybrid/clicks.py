@@ -42,7 +42,7 @@ class DwellClicker:
             self.anchor = (float(x), float(y))
             self.anchor_t0 = now
             return False, 0.0
-        prog = min(1.0, (now - self.anchor_t0) / self.dwell_s)
+        prog = min(1.0, max(0.0, (now - self.anchor_t0) / self.dwell_s))
         if prog >= 1.0:
             self.reset()  # анти-даблклик: нужна новая фиксация
             return True, 1.0
@@ -78,6 +78,7 @@ class ClickRouter:
         if sample.src != self._last_src:
             self._last_src = sample.src
             self.dwell.reset()
+            self._last_wink = None
         wink = sample.wink if self.wink_on else None
         if wink in ("left", "right") and wink != self._last_wink:
             self._last_wink = wink

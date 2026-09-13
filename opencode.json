@@ -1,25 +1,30 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "opencode-notify",
+    "opencode-pty",
+    "@tarquinen/opencode-dcp"
+  ],
   "lsp": {
     "pyright": {
-      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\pyright-langserver.exe", "--stdio"],
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "-p", "pyright", "pyright-langserver", "--stdio"],
       "extensions": [".py", ".pyi"]
     },
     "ruff": {
-      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ruff.exe", "server"],
+      "command": ["C:\\Python314\\python.exe", "-m", "ruff", "server"],
       "extensions": [".py", ".pyi"]
     }
   },
   "formatter": {
     "ruff": {
-      "command": ["C:\\Users\\nisno\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ruff.exe", "format", "$FILE"],
+      "command": ["C:\\Python314\\python.exe", "-m", "ruff", "format", "$FILE"],
       "extensions": [".py", ".pyi"]
     }
   },
   "mcp": {
-    "playwright": {
+    "patchright": {
       "type": "local",
-      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@playwright/mcp"],
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "patchright-mcp@latest"],
       "enabled": true
     },
     "context7": {
@@ -38,7 +43,7 @@
     "github": {
       "type": "local",
       "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-github"],
-      "enabled": false,
+      "enabled": true,
       "environment": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}",
         "NODE_TLS_REJECT_UNAUTHORIZED": "0",
@@ -47,7 +52,7 @@
     },
     "filesystem": {
       "type": "local",
-      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\nisno\\OneDrive\\Pictures\\Ramazan", "C:\\Users\\nisno\\.eyeconnect"],
+      "command": ["C:\\Program Files\\nodejs\\npx.cmd", "-y", "@modelcontextprotocol/server-filesystem", "C:\\Users\\koser\\AI\\proxychecker", "C:\\Users\\koser\\.eyeconnect"],
       "enabled": true,
       "environment": {
         "NODE_TLS_REJECT_UNAUTHORIZED": "0",

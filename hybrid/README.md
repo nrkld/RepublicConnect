@@ -14,12 +14,12 @@ python -m hybrid --source gaze --no-magnet :: чистый gaze-курсор б�
 ```
 
 Частые флаги: `--seconds N`, `--fps 120`, `--tracker unigaze|l2cs|facemesh`,
-`--camera 0`, `--no-dwell` / `--dwell-s 1.2`, `--no-wink-click`,
+`--camera 0`, `--dwell` (по умолчанию выкл) / `--dwell-s 1.2`, `--no-wink-click`,
 `--strict` / `--no-strict`, `--recalib` / `--no-calib`. Выход — `F12`, `F9` — вкл/выкл.
 
 ## Архитектура по модулям
 
-- `config` — пресеты `MOUSE` (20/35) / `GAZE` (120/180): capture/release/flick/cooldown/away_frames.
+- `config` — пресеты `MOUSE` (20/35) / `GAZE` (70/120): capture/release/flick/cooldown/away_frames.
 - `snap_core` — канон магнита (`Target`/`MagnetSnap`, гистерезис + вырывание); `magnetcursor/snap.py` делегирует сюда.
 - `win_cursor` — единственный владелец системного курсора (`get/set/do_click/pressed/screen_size`, `set_sys_cursor` — alias).
 - `providers` — `PointerSample`, `GazeProvider` (гейты потери лица/саккад/jump + EMA), `MouseProvider`, `AutoProvider` (мышь ведёт с cooldown, иначе gaze/hold), `AsyncGaze` (инференс в фоне + `_predict`).

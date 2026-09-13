@@ -203,8 +203,20 @@ def test_engine_dwell_clicks_snapped():
         clock.advance(0.2)
 
     _run(prov, FakeTargets([_ok_btn()]), cur, ov, clock, source="gaze",
-         dwell_s=0.5, max_iters=5, on_frame=hook)
+         dwell_click=True, dwell_s=0.5, max_iters=5, on_frame=hook)
     assert cur.clicks == [(150.0, 120.0, "left")], cur.clicks
+
+
+def test_engine_dwell_off_by_default():
+    cur, ov, clock = FakeCursor((0, 0)), FakeOverlay(), FakeClock()
+    prov = ScriptProvider([_gaze(90, 110)])
+
+    def hook(s, o):
+        clock.advance(0.2)
+
+    _run(prov, FakeTargets([_ok_btn()]), cur, ov, clock, source="gaze",
+         dwell_s=0.5, max_iters=5, on_frame=hook)
+    assert cur.clicks == [], cur.clicks
 
 
 def test_engine_dwell_suppressed_unsnapped():
@@ -215,7 +227,7 @@ def test_engine_dwell_suppressed_unsnapped():
         clock.advance(0.2)
 
     _run(prov, FakeTargets([_ok_btn()]), cur, ov, clock, source="gaze",
-         magnet=False, dwell_s=0.5, max_iters=5, on_frame=hook)
+         magnet=False, dwell_click=True, dwell_s=0.5, max_iters=5, on_frame=hook)
     assert cur.clicks == [], cur.clicks
 
 

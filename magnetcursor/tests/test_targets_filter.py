@@ -11,6 +11,9 @@ for _p in (_HERE.parents[2], _HERE.parents[1]):  # Ramazan/, magnetcursor-реп
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+import pytest
+
+uiautomation = pytest.importorskip("uiautomation")
 import uiautomation as auto
 from magnetcursor.targets import TargetCache, _accept, _default_strict
 

@@ -21,7 +21,7 @@ assert r.alpha in (0.1, 1.0, 10.0), r.alpha  # RidgeCV выбрал alpha
 feats_out = np.vstack([feats, [[10.0, 10.0]]])
 screens_out = np.vstack([screens, [[1280., 720.]]])
 r_rob, info = GazeRegressor().fit_robust(feats_out, screens_out)
-assert info["dropped"] is not None or True  # выброс на синтетике может не сработать — главное без краша
+assert "dropped" in info  # выброс на синтетике может не сработать — главное без краша
 loo = r.loo_error(feats, screens)
 assert loo["n"] == 9 and loo["loo_px"] >= 0, loo
 perr = r.per_point_errors(feats, screens)

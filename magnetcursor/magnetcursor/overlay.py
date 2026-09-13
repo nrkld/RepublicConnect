@@ -58,7 +58,7 @@ class Overlay:
         self._thread = None
 
     def start(self):
-        if self._thread is None and _HAS_TK:
+        if (self._thread is None or not self._thread.is_alive()) and _HAS_TK:
             try:
                 while True:
                     self._q.get_nowait()

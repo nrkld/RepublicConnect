@@ -287,6 +287,8 @@ class TargetCache:
     """Фоновое обновление списка целей. Потокобезопасно для чтения."""
 
     def __init__(self, interval=0.5, strict=None):
+        if not interval > 0:
+            raise ValueError(f"interval должен быть > 0, получен {interval!r}")
         self.interval = interval
         self.strict = _default_strict() if strict is None else bool(strict)
         self._targets = []

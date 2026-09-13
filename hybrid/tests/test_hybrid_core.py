@@ -8,6 +8,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # корень Ramazan/
 
 from hybrid import snap_core
@@ -24,7 +26,7 @@ def _targets():
 
 def test_presets_match_legacy():
     assert (MOUSE["capture"], MOUSE["release"]) == (20.0, 35.0)  # magnetcursor/config.py
-    assert (GAZE["capture"], GAZE["release"]) == (120.0, 180.0)  # snap-дефолты/тесты
+    assert (GAZE["capture"], GAZE["release"]) == (70.0, 120.0)  # snap-дефолты/тесты
     for src in ("mouse", "gaze"):
         p = get_preset(src)
         assert p["release"] >= p["capture"]
@@ -39,7 +41,7 @@ def test_make_snap_sources():
     m = snap_core.make_snap("mouse")
     assert (m.cap, m.rel) == (20.0, 35.0)
     g = snap_core.make_snap("gaze")
-    assert (g.cap, g.rel) == (120.0, 180.0)
+    assert (g.cap, g.rel) == (70.0, 120.0)
     assert g.away_frames > m.away_frames  # взгляд терпимее к дрожанию
 
 
@@ -94,8 +96,7 @@ def test_snap_matches_magnetcursor():
         try:
             from magnetcursor.snap import Target as MT, MagnetSnap as MM
         except ImportError:
-            print("skip test_snap_matches_magnetcursor: magnetcursor не найден")
-            return
+            pytest.skip("magnetcursor не найден")
     a, b = _targets()
     ma = MT.from_rect(100, 100, 180, 140, name="A")
     mb = MT.from_rect(200, 100, 280, 140, name="B")
@@ -115,8 +116,7 @@ def test_snap_local_fallback_matches():
     snap_path = (Path(__file__).resolve().parents[2]
                  / "magnetcursor" / "magnetcursor" / "snap.py")
     if not snap_path.exists():
-        print("skip test_snap_local_fallback_matches: snap.py не найден")
-        return
+        pytest.skip("snap.py не найден")
     saved = {k: sys.modules.pop(k) for k in
              [k for k in sys.modules if k == "hybrid" or k.startswith("hybrid.")]}
     sys.modules["hybrid"] = None  # любой import hybrid -> ImportError
@@ -145,7 +145,7 @@ def test_win_cursor_safe():
     x, y = win_cursor.get_pos()
     assert isinstance(x, int) and isinstance(y, int)
     # set_pos только в текущую позицию — курсор зримо не двигается
-    assert win_cursor.set_pos(x, y) in (True, False)
+    assert win_cursor.set_pos(x, y) is win_cursor.IS_WIN
     assert win_cursor.set_sys_cursor is win_cursor.set_pos  # alias для eyeconnect
     assert win_cursor.pressed(0x7B) in (True, False)
     w, h = win_cursor.screen_size()
