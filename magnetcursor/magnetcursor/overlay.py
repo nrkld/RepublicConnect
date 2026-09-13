@@ -229,9 +229,14 @@ class Overlay:
 
         def tick():
             nonlocal cur, magnet_on, count, after_id, stopping
-            try:
-                while True:
+            while True:
+                try:
                     kind, val = self._q.get_nowait()
+                except queue.Empty:
+                    break
+                except Exception:
+                    continue
+                try:
                     if kind == "STOP":
                         stopping = True
                         # очередь переиспользуется между стартами — слить хвост,
@@ -250,10 +255,10 @@ class Overlay:
                         return
                     if kind == "TARGET":
                         if val != cur:
+                            l, t, r, b = [int(v) for v in val] if val is not None else (None,) * 4
                             cur = val
                             cv.delete("all")
                             if cur is not None:
-                                l, t, r, b = [int(v) for v in cur]
                                 cv.create_rectangle(l - 3, t - 3, r + 3, b + 3,
                                                     outline="#00ff00", width=3)
                     elif kind == "STATE":
@@ -271,8 +276,8 @@ class Overlay:
                                 _draw_progress(cv, px, py, frac)
                         except Exception:
                             pass
-            except queue.Empty:
-                pass
+                except Exception:
+                    continue
             if not stopping:
                 try:
                     after_id = root.after(33, tick)

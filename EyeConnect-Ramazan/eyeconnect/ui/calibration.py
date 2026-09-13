@@ -92,7 +92,7 @@ def wait_for_start(win, lines, w=640, h=200):
 
 
 def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
-                    grid=None, dwell_s=None, wait=True, margin=None):
+                    grid=None, dwell_s=None, wait=True, margin=None, fullscreen=False):
     """Интерактив: смотри на точку. Возвращает (feats, screens).
     Всегда 126 равноудалённых точек serpentine на весь экран.
     Параметры grid/margin оставлены для совместимости и игнорируются."""
@@ -103,10 +103,17 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
     dwell = float(dwell_s) if dwell_s else C.CALIBDWELL_S
     feats, screens = [], []
     avg_window = float(avg_s) if avg_s else float(C.CALIB_AVG_S)
+    if dwell <= C.CALIB_SETTLE_S:
+        raise ValueError(f"dwell {dwell}с <= settle {C.CALIB_SETTLE_S}с: "
+                         f"окно выборки пустое, все точки пропадут")
+    bad_streak = 0
     all_samples = []  # (point_idx, feat) для gaze_samples_*.npz
     win = "EyeConnect калибровка (Q - отмена)"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(win, screen_w // 2, screen_h // 2)
+    if fullscreen:
+        cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    else:
+        cv2.resizeWindow(win, screen_w // 2, screen_h // 2)
     if wait:
         total = len(pts) * (dwell + 0.3)
         try:
@@ -114,7 +121,7 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                 f"Точек: {len(pts)}, ~{total:.0f} сек.",
                 "Сядь 60см, смотри на красную точку.",
                 "ПРОБЕЛ/клик — начать, Q — отмена.",
-            ], w=screen_w // 2, h=200)
+            ], w=screen_w if fullscreen else screen_w // 2, h=200)
         except KeyboardInterrupt:
             cv2.destroyWindow(win)
             print("Калибровка не начата")
@@ -133,11 +140,15 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                 f = cam.read()
                 if f is None:
                     continue
-                feat, conf, _ = tracker.process(f)
+                try:
+                    feat, conf, _ = tracker.process(f)
+                    conf_v = float(conf)
+                except Exception:
+                    feat, conf_v = None, float("-inf")
                 n_total += 1
                 now = time.time()
                 sampling = now >= t_avg_start and now >= t_settle
-                if feat is not None and conf >= C.MP_MIN_CONF:
+                if feat is not None and conf_v >= C.MP_MIN_CONF:
                     # резка саккад/морганий до усреднения
                     if prev is not None and is_saccade(prev, feat):
                         n_cut += 1
@@ -146,7 +157,13 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                         continue
                     prev = feat
                     n_ok += 1
-                    sm = filt.update(feat)
+                    try:
+                        sm = filt.update(feat)
+                    except Exception:
+                        n_cut += 1
+                        filt.reset()
+                        prev = None
+                        continue
                     all_samples.append((i, float(sm[0]), float(sm[1])))
                     if sampling:
                         buf.append(np.asarray(sm, dtype=float))
@@ -156,8 +173,12 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                     prev = None
                 remain = max(0.0, t_end - now)
                 phase_settle = now < t_settle
-                canvas = np.zeros((screen_h // 2, screen_w // 2, 3), np.uint8)
-                cx, cy = int(sx / 2), int(sy / 2)
+                if fullscreen:
+                    canvas = np.zeros((screen_h, screen_w, 3), np.uint8)
+                    cx, cy = int(sx), int(sy)
+                else:
+                    canvas = np.zeros((screen_h // 2, screen_w // 2, 3), np.uint8)
+                    cx, cy = int(sx / 2), int(sy / 2)
                 if phase_settle:
                     # кольцо — идёт саккада, данные не пишем (Hannibal delay)
                     cv2.circle(canvas, (cx, cy), 14, (0, 165, 255), 2)
@@ -173,18 +194,31 @@ def run_calibration(cam, tracker, filt, screen_w=1280, screen_h=720, avg_s=None,
                 det_rate = n_ok / max(1, n_total)
                 if det_rate < 0.3:
                     print(f"Точка {i+1}: мало детекций ({det_rate:.0%}) — пропущена")
+                    bad_streak += 1
+                    if bad_streak >= 10:
+                        print("10 точек подряд без детекций — прерываю, проверь свет/посадку")
+                        break
                     continue
                 try:
                     m, s, nin, ntot = robust_mean(buf)
                 except ValueError:
                     print(f"Точка {i+1}: пустой буфер — пропущена")
+                    bad_streak += 1
+                    if bad_streak >= 10:
+                        print("10 точек подряд без детекций — прерываю, проверь свет/посадку")
+                        break
                     continue
                 if float(np.mean(s)) > 0.12:
                     print(f"Точка {i+1}: шумно (std {np.mean(s):.3f}) — взята медиана, держи голову ровнее")
                 feats.append(m)
                 screens.append((sx, sy))
+                bad_streak = 0
             else:
                 print(f"Точка {i+1}: лицо терялось — пропущена")
+                bad_streak += 1
+                if bad_streak >= 10:
+                    print("10 точек подряд без детекций — прерываю, проверь свет/посадку")
+                    break
     except KeyboardInterrupt:
         print("Калибровка прервана")
     finally:

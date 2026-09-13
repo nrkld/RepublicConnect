@@ -18,7 +18,8 @@ class WinkTracker:
     """Обёртка: gaze через inner-трекер + wink через EAR."""
 
     def __init__(self, inner=None, inner_name="l2cs",
-                 ear_ratio=0.7, hist_len=50, min_hist=15, cooldown_s=0.8):
+                 ear_ratio=0.7, hist_len=50, min_hist=15, cooldown_s=0.8,
+                 wink_need=2):
         from .facemesh import FaceTracker
         self._FaceTracker = FaceTracker
         if inner is None:
@@ -35,8 +36,11 @@ class WinkTracker:
         self.ear_ratio = float(ear_ratio)
         self.min_hist = int(min_hist)
         self.cooldown_s = float(cooldown_s)
+        self.wink_need = max(1, int(wink_need))
         self._prev_wink = None
         self._last_click_t = 0.0
+        self._cand = None
+        self._cand_n = 0
 
     @staticmethod
     def _mean(dq):
@@ -76,12 +80,19 @@ class WinkTracker:
                 elif r_closed and not l_closed:
                     wink = "right"
                 # оба закрыты = моргание, не клик
+                if wink == self._cand:
+                    self._cand_n += 1
+                else:
+                    self._cand = wink
+                    self._cand_n = 0 if wink is None else 1
+                fired = self._cand if self._cand is not None and \
+                    self._cand_n >= self.wink_need else None
                 now = time.monotonic()
-                if wink and wink != self._prev_wink and \
+                if fired and fired != self._prev_wink and \
                         (now - self._last_click_t) >= self.cooldown_s:
-                    dbg["wink"] = wink
+                    dbg["wink"] = fired
                     self._last_click_t = now
-                self._prev_wink = wink
+                self._prev_wink = fired
         return feat, conf, dbg
 
     def close(self):

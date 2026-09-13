@@ -122,6 +122,9 @@ def cmd_calibrate(args):
         print("ВЕРДИКТ: СРЕДНЕ — сядь 60см, ровный свет, перекалибруй края")
     else:
         print("ВЕРДИКТ: ПЛОХО — перекалибруй: свет в лицо, камера на уровне глаз, не двигай головой")
+    if not (loo_deg == loo_deg and loo_deg <= 3.0):
+        print("Профиль НЕ сохранён (вердикт ПЛОХО) — исправь условия и перекалибруй")
+        return
     if getattr(reg, "kind", "poly") == "poly":
         print(f"alpha RidgeCV: {reg.alpha}")
     else:

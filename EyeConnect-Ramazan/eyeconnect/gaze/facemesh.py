@@ -125,11 +125,13 @@ class FaceTracker:
 
             l_iris = np.mean([pt(i) for i in L_IRIS], axis=0)
             r_iris = np.mean([pt(i) for i in R_IRIS], axis=0)
+            ear_l = ear(L_OUTER, L_INNER, L_TOP, L_BOT)
+            ear_r = ear(R_OUTER, R_INNER, R_TOP, R_BOT)
             feat = features_from_eyes(l_iris, pt(L_OUTER), pt(L_INNER),
-                                      r_iris, pt(R_OUTER), pt(R_INNER))
+                                      r_iris, pt(R_OUTER), pt(R_INNER),
+                                      l_w=max(ear_l, 0.02), r_w=max(ear_r, 0.02))
             dbg = {"l_iris": tuple(l_iris), "r_iris": tuple(r_iris),
-                   "ear_l": ear(L_OUTER, L_INNER, L_TOP, L_BOT),
-                   "ear_r": ear(R_OUTER, R_INNER, R_TOP, R_BOT)}
+                   "ear_l": ear_l, "ear_r": ear_r}
             return feat, dbg
 
         # tasks backend (1.x)

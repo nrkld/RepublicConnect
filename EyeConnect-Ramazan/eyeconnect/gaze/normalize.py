@@ -29,8 +29,13 @@ def norm_eye(iris_xy, outer_xy, inner_xy, top_xy=None, bottom_xy=None):
     return float(np.clip(nx, -0.5, 1.5)), float(np.clip(ny, -0.5, 1.5))
 
 
-def fuse_eyes(left_n, right_n):
-    return ((left_n[0] + right_n[0]) / 2.0, (left_n[1] + right_n[1]) / 2.0)
+def fuse_eyes(left_n, right_n, lw=1.0, rw=1.0):
+    lw, rw = max(float(lw), 0.0), max(float(rw), 0.0)
+    s = lw + rw
+    if s <= 0.0:
+        lw, rw, s = 1.0, 1.0, 2.0
+    return ((left_n[0] * lw + right_n[0] * rw) / s,
+            (left_n[1] * lw + right_n[1] * rw) / s)
 
 
 def estimate_distance_mm(iris_px, focal_px=650.0):
@@ -39,10 +44,12 @@ def estimate_distance_mm(iris_px, focal_px=650.0):
     return float(focal_px * IRIS_REAL_MM / iris_px)
 
 
-def features_from_eyes(l_iris, l_outer, l_inner, r_iris, r_outer, r_inner):
+def features_from_eyes(l_iris, l_outer, l_inner, r_iris, r_outer, r_inner,
+                       l_w=None, r_w=None):
     ln = norm_eye(l_iris, l_outer, l_inner)
     rn = norm_eye(r_iris, r_outer, r_inner)
-    fx, fy = fuse_eyes(ln, rn)
+    fx, fy = fuse_eyes(ln, rn, 1.0 if l_w is None else l_w,
+                        1.0 if r_w is None else r_w)
     return np.array([fx, fy], dtype=np.float64)
 
 

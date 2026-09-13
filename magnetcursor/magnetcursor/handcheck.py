@@ -10,7 +10,7 @@ import ctypes
 import time
 from collections import Counter
 
-from .service import get_pos, pressed, VK_F12, CAPTURE_RADIUS
+from .service import RELEASE_RADIUS, VK_F12, _set_dpi_aware, get_pos, pressed
 from .targets import TargetCache
 
 IDC_HAND = 32649
@@ -50,7 +50,17 @@ def _report_path():
     return C.PROFILE_DIR / "handcheck_report.txt"
 
 
+def _near_target(targets, x, y, radius):
+    r2 = radius ** 2
+    return any(max(t.left - x, 0, x - t.right) ** 2
+               + max(t.top - y, 0, y - t.bottom) ** 2 <= r2 for t in targets)
+
+
 def _write_report(misses):
+    try:
+        _report_path().parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
     lines = [time.strftime("Handcheck otchyot %Y-%m-%d %H:%M:%S"), ""]
     if not misses:
         lines.append("promahov net — vsyo, chto dayot ruku, magnit vidit")
@@ -62,6 +72,7 @@ def _write_report(misses):
 
 
 def main():
+    _set_dpi_aware()
     cache = TargetCache(interval=0.5)
     cache.start()
     misses = Counter()
@@ -75,9 +86,7 @@ def main():
             if not cursor_is_hand():
                 continue
             x, y = get_pos()
-            near = any(max(t.left - x, 0, x - t.right) ** 2
-                       + max(t.top - y, 0, y - t.bottom) ** 2 <= CAPTURE_RADIUS ** 2
-                       for t in cache.get())
+            near = _near_target(cache.get(), x, y, RELEASE_RADIUS)
             if not near:
                 key = (fg_name(), x // 100 * 100, y // 100 * 100)
                 misses[key] += 1

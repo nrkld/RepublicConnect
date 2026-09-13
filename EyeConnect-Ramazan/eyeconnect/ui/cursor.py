@@ -92,91 +92,19 @@ def save_profile(reg, W, H, tracker="facemesh"):
 def fullscreen_calibrate(cam, tracker, filt, tracker_name="facemesh", avg_s=None,
                          grid=None, dwell_s=None, wait=True, margin=None):
     """Калибровка serpentine на весь экран (126 равноудалённых точек). Возвращает (reg, W, H)."""
-    from ..gaze.normalize import robust_mean, is_saccade
-    from .calibration import grid_points, wait_for_start
+    from .calibration import grid_points, run_calibration
     W, H = screen_size()
-    nspec = ("auto", C.CALIB_POINTS)
     mgn = float(margin) if margin is not None else C.CALIB_MARGIN
-    pts = grid_points(W, H, n=nspec, margin=mgn, serpentine=True)
-    dwell = float(dwell_s) if dwell_s else C.CALIBDWELL_S
-    avg_window = float(avg_s) if avg_s else float(C.CALIB_AVG_S)
-    win = "EyeConnect: smotri na krasnuyu tochku"
-    cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty(win, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    if wait:
-        total = len(pts) * (dwell + 0.3)
-        try:
-            wait_for_start(win, [f"Tochek: {len(pts)}, ~{total:.0f} sek.",
-                                 "Syad 60sm, smotri na krasnuyu tochku.",
-                                 "PROBEL/klik — nachat, Esc — otmena."], w=W, h=H)
-        except KeyboardInterrupt:
-            cv2.destroyWindow(win)
-            raise RuntimeError("Kalibrovka ne nachata.")
-    feats, screens = [], []
-    try:
-        for i, (sx, sy) in enumerate(pts):
-            filt.reset()
-            t_start = time.time()
-            t_settle = t_start + C.CALIB_SETTLE_S
-            t_end = t_start + dwell
-            t_avg = t_end - avg_window
-            buf = []
-            prev = None
-            n_total, n_ok, n_cut = 0, 0, 0
-            while time.time() < t_end:
-                f = cam.read()
-                if f is None:
-                    continue
-                feat, conf, _ = tracker.process(f)
-                n_total += 1
-                now = time.time()
-                if feat is not None and conf >= C.MP_MIN_CONF:
-                    if prev is not None and is_saccade(prev, feat):
-                        n_cut += 1
-                        filt.reset()
-                        prev = None
-                        continue
-                    prev = feat
-                    n_ok += 1
-                    sm = filt.update(feat)
-                    if now >= t_avg and now >= t_settle:
-                        buf.append(np.asarray(sm, dtype=float))
-                else:
-                    filt.reset()
-                    prev = None
-                canvas = np.zeros((H, W, 3), np.uint8)
-                if now < t_settle:
-                    cv2.circle(canvas, (int(sx), int(sy)), 18, (0, 165, 255), 3)
-                else:
-                    # маленькая точка (r=12): точнее фиксация взгляда
-                    cv2.circle(canvas, (int(sx), int(sy)), 12, (0, 0, 255), -1)
-                    cv2.circle(canvas, (int(sx), int(sy)), 18, (255, 255, 255), 2)
-                remain = max(0.0, t_end - now)
-                cv2.putText(canvas, f"{i+1}/{len(pts)} smotri {remain:.1f}s det {n_ok}/{max(1,n_total)} cut {n_cut}",
-                            (60, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
-                cv2.imshow(win, canvas)
-                if cv2.waitKey(1) & 0xFF == 27:
-                    raise KeyboardInterrupt
-            if buf:
-                det_rate = n_ok / max(1, n_total)
-                if det_rate < 0.3:
-                    print(f"Tochka {i+1}: malo detekciy ({det_rate:.0%}) — propushena")
-                    continue
-                m, s, nin, ntot = robust_mean(buf)
-                feats.append(m)
-                screens.append((sx, sy))
-            else:
-                print(f"Tochka {i+1}: lico teryalos — propushena")
-    except KeyboardInterrupt:
-        print("Kalibrovka prervana (Esc)")
-    finally:
-        cv2.destroyWindow(win)
-    need = max(4, len(pts) // 4)
+    feats, screens = run_calibration(cam, tracker, filt, screen_w=W, screen_h=H,
+                                     avg_s=avg_s, grid=grid, dwell_s=dwell_s,
+                                     wait=wait, margin=margin, fullscreen=True)
+    n_pts = len(grid_points(W, H, n=("auto", C.CALIB_POINTS), margin=mgn, serpentine=True))
+    need = max(4, n_pts // 4)
     if len(feats) < need:
-        raise RuntimeError(f"Malo tochek ({len(feats)}/{len(pts)}, nuzhno {need}): lico teryalos. Syad blizhe (60sm) i povtori.")
+        raise RuntimeError(f"Malo tochek ({len(feats)}/{n_pts}, nuzhno {need}): lico teryalos. Syad blizhe (60sm) i povtori.")
     reg = GazeRegressor().fit(np.array(feats), np.array(screens))
     save_profile(reg, W, H, tracker_name)
-    print(f"Kalibrovka OK: {len(feats)}/{len(pts)} tochek, ekran {W}x{H}")
+    print(f"Kalibrovka OK: {len(feats)}/{n_pts} tochek, ekran {W}x{H}")
     return reg, W, H
 
 

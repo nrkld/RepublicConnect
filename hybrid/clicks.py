@@ -59,11 +59,13 @@ class ClickRouter:
         self._time = time_fn or time.time
         self._last_wink = None
         self._last_click_t = float("-inf")
+        self._last_src = None
 
     def reset(self):
         self.dwell.reset()
         self._last_wink = None
         self._last_click_t = float("-inf")
+        self._last_src = None
 
     def note_invalid(self):
         """Битый кадр: dwell-якорь и фронт wink сбросить."""
@@ -73,6 +75,9 @@ class ClickRouter:
     def update(self, sample, snapped, tx, ty):
         """Решение о клике в точке (tx, ty). -> ClickEvent | None."""
         now = self._time()
+        if sample.src != self._last_src:
+            self._last_src = sample.src
+            self.dwell.reset()
         wink = sample.wink if self.wink_on else None
         if wink in ("left", "right") and wink != self._last_wink:
             self._last_wink = wink
@@ -82,7 +87,7 @@ class ClickRouter:
                 return ClickEvent(wink, float(tx), float(ty))
             return None
         self._last_wink = wink
-        if self.dwell_on:
+        if self.dwell_on and sample.src != "mouse":
             # якорь — сырой взгляд (дрожание честно сбрасывает), клик — в цель
             clicked, _ = self.dwell.update(sample.x, sample.y, now, armed=snapped)
             if clicked and now - self._last_click_t >= self.cooldown_s:

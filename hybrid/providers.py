@@ -42,7 +42,7 @@ def _feat_dist(a, b):
 class GazeProvider:
     def __init__(self, cam, tracker, filt, reg, width, height,
                  lost_conf=0.3, saccade_thr=0.25, jump_px=500.0,
-                 ema_alpha=0.45, wink=True, jump_grace=5):
+                 ema_alpha=0.45, wink=True, jump_grace=5, jump_accept=3):
         """Дефолты = константы eyeconnect (MP_LOST_CONF, is_saccade.thr, jump_px, alpha).
         jump_grace — первых N валидных кадров после старта/возврата без jump-гейта
         (даём EMA сойтись; иначе стартовая фиксация в углу защёлкивает гейт)."""
@@ -58,6 +58,7 @@ class GazeProvider:
         self.ema_alpha = ema_alpha
         self.wink_enabled = wink
         self.jump_grace = jump_grace
+        self.jump_accept = jump_accept
         self.reset()
 
     def reset(self):
@@ -70,6 +71,7 @@ class GazeProvider:
         self._has_pos = False
         self._prev = None
         self._grace_left = self.jump_grace
+        self._jump_streak = 0
 
     def poll(self):
         try:
@@ -94,12 +96,12 @@ class GazeProvider:
                 pass
             self._prev = None
             self._grace_left = self.jump_grace  # возврат — заново сходимся
+            self._jump_streak = 0
             return PointerSample(self._sm_x, self._sm_y, False, None, "no-face", "gaze")
         # гейт морганий на фичах: резкий скачок — кадр пропускаем целиком,
         # фильтр не травим. Опору обновляем: следующий steady-кадр проходит.
         if self._prev is not None and _feat_dist(self._prev, feat) > self.saccade_thr:
             self._prev = tuple(feat)
-            self._grace_left = self.jump_grace
             return PointerSample(self._sm_x, self._sm_y, False, None, "blink", "gaze")
         try:
             self._prev = tuple(feat)
@@ -128,7 +130,12 @@ class GazeProvider:
         # даёт EMA сойтись, дальше гейт работает как раньше.
         if (self._has_pos and self._grace_left <= 0
                 and math.hypot(gx - self._sm_x, gy - self._sm_y) > self.jump_px):
-            return PointerSample(self._sm_x, self._sm_y, False, None, "jump", "gaze")
+            self._jump_streak += 1
+            if self._jump_streak < self.jump_accept:
+                return PointerSample(self._sm_x, self._sm_y, False, None, "jump", "gaze")
+            self._sm_x, self._sm_y = gx, gy
+        else:
+            self._jump_streak = 0
         if self._grace_left > 0:
             self._grace_left -= 1
         self._has_pos = True
@@ -146,7 +153,7 @@ class GazeProvider:
 class MouseProvider:
     def poll(self):
         x, y = _wc.get_pos()
-        return PointerSample(float(x), float(y), True, None, "mouse", "mouse")
+        return PointerSample(float(x), float(y), bool(_wc.IS_WIN), None, "mouse", "mouse")
 
     def reset(self):
         pass

@@ -290,13 +290,25 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
     cur = cursor if cursor is not None else _wc
     tfn = time_fn or time.time
     sfn = sleep_fn or time.sleep
-    preset = get_preset("mouse" if source == "mouse" else "gaze")
-    cap = capture if capture is not None else preset["capture"]
-    rel = release if release is not None else preset["release"]
-    flk = flick if flick is not None else preset["flick"]
-    awy = away_frames if away_frames is not None else preset["away_frames"]
-    cool = cooldown if cooldown is not None else preset["cooldown"]
-    snap = MagnetSnap(cap, rel, flk, awy)
+    preset_m = get_preset("mouse")
+    preset_g = get_preset("gaze")
+    base = preset_m if source == "mouse" else preset_g
+    cap = capture if capture is not None else base["capture"]
+    rel = release if release is not None else base["release"]
+    flk = flick if flick is not None else base["flick"]
+    awy = away_frames if away_frames is not None else base["away_frames"]
+    cool = cooldown if cooldown is not None else base["cooldown"]
+    snap_m = MagnetSnap(
+        capture if capture is not None else preset_m["capture"],
+        release if release is not None else preset_m["release"],
+        flick if flick is not None else preset_m["flick"],
+        away_frames if away_frames is not None else preset_m["away_frames"])
+    snap_g = MagnetSnap(
+        capture if capture is not None else preset_g["capture"],
+        release if release is not None else preset_g["release"],
+        flick if flick is not None else preset_g["flick"],
+        away_frames if away_frames is not None else preset_g["away_frames"])
+    snaps = (snap_m, snap_g)
     router = ClickRouter(dwell_s, dwell_radius, dwell_on=dwell_click,
                          wink_on=wink_click, time_fn=tfn)
 
@@ -400,7 +412,8 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                     break
                 if ((cur.pressed(VK_F9) or action == "toggle") and now - last_key > 0.4):
                     on = not on
-                    snap.reset()
+                    for s in snaps:
+                        s.reset()
                     router.reset()
                     try:
                         ov.set_target(None)
@@ -430,7 +443,8 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                 except Exception:
                     fg = 0
                 if fg and fg != getattr(cache, "last_fg", 0):
-                    snap.reset()
+                    for s in snaps:
+                        s.reset()
                     try:
                         cache.clear()
                         cache.request_refresh()
@@ -462,18 +476,21 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                         tgts = list(cache) if isinstance(cache, list) else list(cache.get())
                     except Exception:
                         tgts = []
+                sn = snap_m if sample.src == "mouse" else snap_g
                 if now < cooldown_until:
                     # пауза после вырывания — не трогаем; якорь = факт (как last_set)
                     ax, ay = cur.get_pos()
                     last_out = (ax, ay)
                     note(*last_out)
+                    router.note_invalid()
                 else:
                     if sample.src == "mouse":
                         ax, ay = cur.get_pos()
                         user_moved = math.hypot(ax - last_out[0], ay - last_out[1])
-                        if (snap.current is not None
-                                and snap.note_movement(ax, ay, user_moved)):
-                            snap.reset()
+                        if (sn.current is not None
+                                and sn.note_movement(ax, ay, user_moved)):
+                            for s in snaps:
+                                s.reset()
                             cooldown_until = now + cool
                             try:
                                 ov.set_target(None)
@@ -484,7 +501,7 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                             last_out = (ax, ay)
                             note(*last_out)
                         else:
-                            sx, sy, t, snapped = snap.update(ax, ay, tgts)
+                            sx, sy, t, snapped = sn.update(ax, ay, tgts)
                             out = (sx, sy) if snapped else (ax, ay)
                             if math.hypot(out[0] - last_out[0], out[1] - last_out[1]) > 1:
                                 cur.set_pos(out[0], out[1])
@@ -501,7 +518,7 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                                     print(f"snap: {t.name[:40]} ({int(out[0])},{int(out[1])})")
                             _fire(sample, snapped, out)
                     else:  # gaze: курсор ведём мы, всегда ставим
-                        sx, sy, t, snapped = snap.update(ix, iy, tgts)
+                        sx, sy, t, snapped = sn.update(ix, iy, tgts)
                         out = (sx, sy) if snapped else (ix, iy)
                         if math.hypot(out[0] - last_out[0], out[1] - last_out[1]) > 1:
                             cur.set_pos(out[0], out[1])
@@ -525,7 +542,8 @@ def run_loop(provider, source="auto", magnet=True, wink_click=True, strict=None,
                 sfn(interval)
             except Exception as ex:
                 crash_log(ex)
-                snap.reset()
+                for s in snaps:
+                    s.reset()
                 sfn(0.2)
     finally:
         for fin in (getattr(ov, "stop", None),

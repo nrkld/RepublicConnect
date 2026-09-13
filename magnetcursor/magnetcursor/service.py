@@ -134,6 +134,7 @@ def main():
         ov = NullOverlay()
     on = True
     last_key = 0.0
+    f9_down = False
     shown = None
     hinted_browser = False
     next_hint_check = 0.0
@@ -154,7 +155,8 @@ def main():
                     action = None
                 if action == "quit":
                     break
-                if ((pressed(VK_F9) or action == "toggle") and now - last_key > 0.4):
+                f9 = bool(pressed(VK_F9))
+                if (((f9 and not f9_down) or action == "toggle") and now - last_key > 0.4):
                     on = not on
                     snap.reset()
                     ov.set_target(None)
@@ -163,6 +165,7 @@ def main():
                     print("Magnet", "ON" if on else "OFF")
                     last_key = now
                     last_set = get_pos()
+                f9_down = f9
                 if on:
                     x, y = get_pos()
                     user_moved = math.hypot(x - last_set[0], y - last_set[1])
@@ -184,13 +187,15 @@ def main():
                         last_set = (x, y)
                     if now >= next_hint_check:
                         next_hint_check = now + 5.0
-                        if (not hinted_browser and cache.last_is_browser
-                                and cache.last_weblinks <= 1):
-                            hinted_browser = True
-                            print("BROWSER: stranitsa ne vidna (net ssylok). "
-                                  "Zakroy Chrome/Edge i zapusti raz s flagom "
-                                  "--force-renderer-accessibility (mozhno dobavit v yarlyk), "
-                                  "Firefox rabotaet srazu.")
+                        if cache.last_is_browser and cache.last_weblinks <= 1:
+                            if not hinted_browser:
+                                hinted_browser = True
+                                print("BROWSER: stranitsa ne vidna (net ssylok). "
+                                      "Zakroy Chrome/Edge i zapusti raz s flagom "
+                                      "--force-renderer-accessibility (mozhno dobavit v yarlyk), "
+                                      "Firefox rabotaet srazu.")
+                        else:
+                            hinted_browser = False
                     if now < cooldown_until:
                         last_set = (x, y)  # пауза после вырывания — не трогаем
                     else:
@@ -208,7 +213,7 @@ def main():
                                 last_set = (sx, sy)
                             else:
                                 last_set = (x, y)
-                            key = (t.left, t.top, t.right, t.bottom) if t else None
+                            key = (int(t.left), int(t.top), int(t.right), int(t.bottom)) if t else None
                             if key != shown:
                                 shown = key
                                 ov.set_target(key)
@@ -221,7 +226,17 @@ def main():
                 # одна ошибка кадра не должна убивать сервис — пишем в лог
                 try:
                     import traceback
-                    with open(_crash_log(), "a", encoding="utf-8") as f:
+                    try:
+                        _crash_log().parent.mkdir(parents=True, exist_ok=True)
+                    except Exception:
+                        pass
+                    lp = _crash_log()
+                    try:
+                        if lp.exists() and lp.stat().st_size > 1000000:
+                            lp.write_text("", encoding="utf-8")
+                    except Exception:
+                        pass
+                    with open(lp, "a", encoding="utf-8") as f:
                         f.write(time.strftime("[%Y-%m-%d %H:%M:%S] ") + repr(ex) + "\n")
                         traceback.print_exc(file=f)
                 except Exception:

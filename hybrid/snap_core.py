@@ -52,7 +52,15 @@ class MagnetSnap:
         """-> (sx, sy, target|None, snapped: bool)."""
         # 1) держим текущую цель, пока не вышли за release-радиус
         if self.current is not None:
-            if self.current.dist_to_rect(x, y) <= self.rel:
+            if targets:
+                match = None
+                for t in targets:
+                    if math.hypot(t.cx - self.current.cx,
+                                   t.cy - self.current.cy) <= 2.0:
+                        match = t
+                        break
+                self.current = match
+            if self.current is not None and self.current.dist_to_rect(x, y) <= self.rel:
                 t = self.current
                 return t.cx, t.cy, t, True
             self.current = None
@@ -79,7 +87,9 @@ class MagnetSnap:
         if user_moved >= self.flick_px:
             return True
         d = math.hypot(x - self.current.cx, y - self.current.cy)
-        if d > self._d_prev + 2.0 and user_moved > 3.0:
+        if user_moved <= 1.0:
+            self._away_streak = 0
+        elif d > self._d_prev + 2.0 and user_moved > 3.0:
             self._away_streak += 1
         elif d < self._d_prev - 2.0:
             self._away_streak = 0

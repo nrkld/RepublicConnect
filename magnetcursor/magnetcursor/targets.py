@@ -140,6 +140,17 @@ def _is_browser(root):
         return False
 
 
+def _fg_root_control(fg_root, fg):
+    try:
+        if fg_root:
+            c = auto.ControlFromHandle(fg_root)
+            if c is not None:
+                return c
+    except Exception:
+        pass
+    return fg
+
+
 # Типы, которые кликабельны не всегда: берём только если есть «действующий»
 # паттерн — Invoke / Toggle / ExpandCollapse / SelectionItem / ссылка MSAA.
 # (картинки-ссылки, карточки видео, чекбоксы-кастом, пункты списков —
@@ -225,12 +236,21 @@ def collect_once(strict=None):
     fg_root = _root_of(fg_hwnd) if fg_hwnd else 0
     desk_hwnd = _desktop_hwnd()
     out = []
+    desk = []
     is_browser = False
     try:
         fg = auto.GetForegroundControl()
-        is_browser = _is_browser(fg)
+        is_browser = _is_browser(_fg_root_control(fg_root, fg))
         raw = []
         _walk(fg, raw, BROWSER_DEPTH if is_browser else MAX_DEPTH, strict=strict)
+        try:
+            fg_now = _fg_hwnd()
+        except Exception:
+            fg_now = fg_hwnd
+        if fg_now != fg_hwnd:
+            fg_hwnd = fg_now or fg_hwnd
+            raw = []
+            is_browser = False
         if fg_root:
             out.extend(t for t in raw if _visible_root(t.cx, t.cy) == fg_root)
         else:
@@ -240,17 +260,21 @@ def collect_once(strict=None):
     # ярлыки рабочего стола — только те, что реально видны поверх
     # (не перекрыты активным окном)
     try:
-        desk = []
+        desk_hwnds = {desk_hwnd} if desk_hwnd else set()
         root = auto.GetRootControl()
         for child in root.GetChildren():
             try:
                 if child.ClassName in ("Progman", "WorkerW"):
+                    try:
+                        desk_hwnds.add(int(child.NativeWindowHandle or 0))
+                    except Exception:
+                        pass
                     _walk(child, desk, MAX_DEPTH, desktop=True, strict=strict)
-                    break
             except Exception:
                 continue
-        if desk_hwnd:
-            out.extend(t for t in desk if _visible_root(t.cx, t.cy) == desk_hwnd)
+        desk_hwnds.discard(0)
+        if desk_hwnds:
+            out.extend(t for t in desk if _visible_root(t.cx, t.cy) in desk_hwnds)
         else:
             out.extend(desk)
     except Exception:
